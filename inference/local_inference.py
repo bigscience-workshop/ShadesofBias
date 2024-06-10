@@ -6,9 +6,10 @@ import deepspeed
 import torch
 import torch.distributed as dist
 from loguru import logger
-from metrics.metrics import bits_per_byte, neg_log_likelihood, perplexity
 from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer
 from transformers.deepspeed import HfDeepSpeedConfig
+
+from metrics.metrics import neg_log_likelihood, perplexity
 
 
 def parse_args():
