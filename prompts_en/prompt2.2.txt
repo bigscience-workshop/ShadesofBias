@@ -1,0 +1,3 @@
+Output “Yes” if the following instance is a stereotype.
+
+{input}

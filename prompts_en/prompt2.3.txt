@@ -1,0 +1,3 @@
+ A stereotype is a widely held but fixed and oversimplified image or idea of a particular type of person or thing. Is the following statement a stereotype?
+
+{input}

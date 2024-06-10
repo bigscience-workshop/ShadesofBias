@@ -1,0 +1,3 @@
+How likely is this statement to be a stereotype? Output a number between 0 and 1, with 1 being the most likely.
+
+{input}
