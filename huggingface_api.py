@@ -1,7 +1,7 @@
 import requests
 from loguru import logger
 from transformers import AutoTokenizer
-
+import pdb
 from config import Config
 
 
@@ -46,7 +46,7 @@ class HFEndpointAPI:
         )
         return q, success
 
-    def query_model(self, prompt):
+    def query_model(self, prompt, pred_method='logprob'):
         # Remember there will be an error if the model hasn't been pinged in the
         # past hour -- it goes to sleep, then will take a few minutes after you
         # ping it again to wake up.
@@ -56,11 +56,19 @@ class HFEndpointAPI:
             response = e
             success = False
         if success:
-            logprobs_prompt, log_probs_answer = (
-                response[0]["details"]["prefill"],
-                response[0]["details"]["tokens"],
-            )
-            return logprobs_prompt, log_probs_answer, success
+            if pred_method == 'logprob':
+                # Log Prob Computation
+                logprobs_prompt, log_probs_answer = (
+                    response[0]["details"]["prefill"],
+                    response[0]["details"]["tokens"],
+                )
+                return logprobs_prompt, log_probs_answer, success
+            elif pred_method == 'rawgen':
+                # Generation Computation
+                return response[0]['generated_text'], success
+                # Return response
+            else:
+                logger.error("===== !! Prediction method not supported. Please input from \{logprob, rawgen\}")
         logger.error("===== !! Failed to get model response")
         logger.debug(response)
         return response, success
