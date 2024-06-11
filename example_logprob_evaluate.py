@@ -1,6 +1,7 @@
 import os
 import re
 import sys
+import pdb
 
 from datasets import load_dataset
 from dotenv import load_dotenv
@@ -60,7 +61,8 @@ def main(
                 biased_sentence = stereotype_dct[language + ": Biased Sentences"]
                 if biased_sentence:
                     logprobs, logprobs_answer, success = model_api.query_model(
-                        biased_sentence
+                        biased_sentence, 
+                        pred_method='logprob'
                     )
                     logger.debug(logprobs)
                 else:
@@ -68,7 +70,9 @@ def main(
             except KeyError:
                 sys.stderr.write("Fix %s\n" % language)
                 continue
-            logprob = [x["logprob"] for x in logprobs[0][1:]]
+            # Temporary filter to address None values
+            logprob = [x["logprob"] for x in logprobs if x["logprob"] is not None]
+            print(logprob)
             total_logprob = sum(logprob)
             mean_logprob = np.mean(logprob)
             n_tokens = len(logprob)
