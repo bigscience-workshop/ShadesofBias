@@ -7,3 +7,9 @@ To use HF Endpoint navigate to [Shades](https://ui.endpoints.huggingface.co/Lang
 
 ## Example Script
 Run `example_logprob_evaluate.py` to iterate through the dataset for a given model and compute log probability of biased sentences. If you have the .env, load_endpoint_url(model_name) will load the model if it has been created for that model.
+
+## Base Models
+Current [Proposed Model List](https://docs.google.com/spreadsheets/d/1VIOlRclodnwu0nfIWX211LsQ01cWXjQ3/edit#gid=1485273927)
+
+## 'Aligned' models
+Todo
