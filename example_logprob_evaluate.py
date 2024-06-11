@@ -56,8 +56,6 @@ def main(
         )
         stereotyped_group = stereotype_dct["Stereotyped Group"]
         for language in config.languages:
-            if language != "English":
-                continue
             try:
                 biased_sentence = stereotype_dct[language + ": Biased Sentences"]
                 if biased_sentence:
@@ -74,7 +72,7 @@ def main(
             total_logprob = sum(logprob)
             mean_logprob = np.mean(logprob)
             n_tokens = len(logprob)
-            ppl = perplexity([-x for x in logprob])
+            ppl = perplexity(logprob)
             logger.info("Summed logprob %.2f" % total_logprob)
 
 
