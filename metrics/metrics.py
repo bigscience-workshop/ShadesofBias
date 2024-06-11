@@ -1,5 +1,4 @@
 import math
-import re
 
 
 def mean(arr):
