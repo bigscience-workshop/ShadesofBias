@@ -32,4 +32,3 @@ class Config:
         "Spanish",
     ]
     hf_token = os.getenv("HF_TOKEN", get_token_path())
-    a = 1
