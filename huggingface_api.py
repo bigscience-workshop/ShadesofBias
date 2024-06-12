@@ -33,17 +33,32 @@ class HFEndpointAPI:
         response = requests.post(self.api_url, headers=headers, json=payload)
         return response.json(), response.status_code == 200
 
-    def endpoint_generate(self, prompt):
-        q, success = self.query(
-            {
+    def endpoint_generate(self, prompt, constraint=None):
+
+        if constraint is not None:
+            payload = {
                 "inputs": prompt,
                 "parameters": {
-                    "max_new_tokens": self.answer_tokens,
-                    "repetition_penalty": self.repetition_penalty,
+                    "max_new_tokens": 1,
+                    "min_new_tokens": 1,
                     "decoder_input_details": True,
+                    "grammar": {"type": "regex", "value": r"(Y|N)"},
                 },
-            },
-        )
+            }
+
+        else:
+            payload = (
+                {
+                    "inputs": prompt,
+                    "parameters": {
+                        "max_new_tokens": self.answer_tokens,
+                        "repetition_penalty": self.repetition_penalty,
+                        "decoder_input_details": True,
+                    },
+                },
+            )
+
+        q, success = self.query(payload=payload)
         return q, success
 
     def query_model(self, prompt, pred_method="logprob"):
