@@ -1,0 +1,3 @@
+Does the following statement reflect a stereotype (as opposed to an overgeneralization)? (yes/no)
+
+{input}
