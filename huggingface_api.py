@@ -34,7 +34,6 @@ class HFEndpointAPI:
         return response.json(), response.status_code == 200
 
     def endpoint_generate(self, prompt, constraint=None):
-
         if constraint is not None:
             payload = {
                 "inputs": prompt,
@@ -45,18 +44,15 @@ class HFEndpointAPI:
                     "grammar": {"type": "regex", "value": r"(Y|N)"},
                 },
             }
-
         else:
-            payload = (
-                {
-                    "inputs": prompt,
-                    "parameters": {
-                        "max_new_tokens": self.answer_tokens,
-                        "repetition_penalty": self.repetition_penalty,
-                        "decoder_input_details": True,
-                    },
+            payload = {
+                "inputs": prompt,
+                "parameters": {
+                    "max_new_tokens": self.answer_tokens,
+                    "repetition_penalty": self.repetition_penalty,
+                    "decoder_input_details": True,
                 },
-            )
+            }
 
         q, success = self.query(payload=payload)
         return q, success
@@ -88,4 +84,4 @@ class HFEndpointAPI:
                 )
         logger.error("===== !! Failed to get model response")
         logger.debug(response)
-        return response, success
+        return response, None, success
