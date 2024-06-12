@@ -1,7 +1,6 @@
 import os
 import re
 import sys
-import pdb
 
 from datasets import load_dataset
 from dotenv import load_dotenv
@@ -61,8 +60,7 @@ def main(
                 biased_sentence = stereotype_dct[language + ": Biased Sentences"]
                 if biased_sentence:
                     logprobs, logprobs_answer, success = model_api.query_model(
-                        biased_sentence, 
-                        pred_method='logprob'
+                        biased_sentence, pred_method="logprob"
                     )
                     logger.debug(logprobs)
                 else:
