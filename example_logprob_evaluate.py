@@ -65,18 +65,17 @@ def main(
                     logger.debug(logprobs)
                 else:
                     continue
-            except KeyError:
+            except Exception:
                 sys.stderr.write("Fix %s\n" % language)
                 continue
             # Temporary filter to address None values
             logprob = [x["logprob"] for x in logprobs if x["logprob"] is not None]
-            print(logprob)
+            logger.debug(logprob)
             total_logprob = sum(logprob)
             mean_logprob = np.mean(logprob)
             n_tokens = len(logprob)
             ppl = perplexity(logprob)
             logger.info("Summed logprob %.2f" % total_logprob)
 
-
 if __name__ == "__main__":
-    main(model_name="bigscience/bloom-7b1", dataset_revision="48897fd")
+    main(model_name="bigscience/bloom-7b1")#, dataset_revision="48897fd")
