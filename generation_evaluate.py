@@ -1,15 +1,13 @@
 import os
-import re
 import sys
-import pdb
+import json
 
 from datasets import load_dataset
 from dotenv import load_dotenv
 
-from metrics.metrics import perplexity
+from metrics.compute_metrics import accuracy_aggregate, accuracy_by_lang
 
 load_dotenv()
-import numpy as np
 from loguru import logger
 from tqdm import tqdm
 
@@ -26,12 +24,13 @@ def main(
     api_url=None,
     promptparams={
         'prompt_lang': 'en',
-        'prompt_name': 'prompt2.4'
+        'prompt_name': 'reflect'
     }
 ):
     config = Config()
     logger.info("Loading dataset")
     data = load_dataset(config.prompts_dataset, revision=dataset_revision)["train"]
+    data = data.shuffle(seed=42).select(range(2))
     logger.info(f"Inference API for Model {model_name}")
     if api_url is None:
         api_url = load_endpoint_url(model_name)
@@ -44,6 +43,20 @@ def main(
         hf_token=os.environ.get("HF_TOKEN", None),
     )
     logger.info("Starting inference")
+
+    preds = dict()
+    for language in config.languages:
+        preds[f'pred_label{language}'] = [-1] * len(data)
+    def update_with_labels(example):
+        if example['Index'] is not None and example['Index'].upper().isupper():
+                # If it's a contrastive instance, then it is
+                # only an overgeneralization instead of stereotype
+                example['gold'] = 0
+        else:
+                example['gold'] = 1
+        return example
+    data = data.map(update_with_labels)
+
     for i, stereotype_dct in enumerate(tqdm(data)):
         logger.info(stereotype_dct)
         id = stereotype_dct["Index"]
@@ -75,8 +88,21 @@ def main(
                 sys.stderr.write("Fix %s\n" % language)
                 continue
             # Parse for lables in generated text
-            pred_label = helper_parse_for_labels(generated_text, labels=['yes', 'no'])
+            pred_label = helper_parse_for_labels(generated_text[len(prompt):], labels=['no', 'yes'])
             logger.info(f"Predicted Label: {pred_label}")
+            preds[f'pred_label{language}'][i] = pred_label
+    # Save the final data to preds/
+    metrics = {
+        'aggregate_acc': accuracy_aggregate(data=data, preds=preds), 
+            }
+    for language in config.languages:
+        try:
+            metrics[language + '_acc'] = accuracy_by_lang(data, language, preds=preds[f'pred_label{language}'])
+        except:
+            logger.error(f"No pred for {language}")
+    with open("preds/metrics.json", "w") as outfile: 
+        json.dump(metrics, outfile)
+    data.save_to_disk(f"preds/pred_generate_{promptparams['prompt_name']}")
 
 
 
@@ -86,5 +112,5 @@ if __name__ == "__main__":
          dataset_revision="48897fd", 
          promptparams={
         'prompt_lang': 'en',
-        'prompt_name': 'prompt2.4'
+        'prompt_name': 'reflect'
     })

@@ -1,6 +1,6 @@
 import os
 import re
-
+import pdb
 
 def load_endpoint_url(model_name):
     env_var_key = "MODEL_" + re.sub(r"\W", "_", model_name).upper()
@@ -37,12 +37,13 @@ def format_single_prompt(biased_sentence, promptparams):
 def helper_parse_for_labels(text, labels):
     """
     text: text returned by inference
-    labels: A list of available labels for the current format
+    labels: A list of available labels for the current format. The order 
+        has to be correspond to the labels
     Returns: The corresponding label of the generated text. Return None if 
         model failed to generate.
     """
-    for label in labels:
+    for idx, label in enumerate(labels):
         if label in text.lower():
-            return label
+            return idx
     # A failed prediction
-    return None
+    return -1
