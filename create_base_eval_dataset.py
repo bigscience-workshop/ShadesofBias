@@ -117,7 +117,7 @@ def main(
                 comments = stereotype_dct[language + ": Comments"]
                 if biased_sentence:
                     logprobs, logprobs_answer, success = model_api.query_model(
-                        biased_sentence, pred_method="logprob"
+                        biased_sentence, pred_method="logprob", append_bos=True
                     )
                     logger.debug(logprobs)
                 else:
