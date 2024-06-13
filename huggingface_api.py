@@ -2,8 +2,6 @@ import requests
 from loguru import logger
 from transformers import AutoTokenizer
 
-from config import Config
-
 
 class HFEndpointAPI:
     def __init__(
@@ -33,7 +31,9 @@ class HFEndpointAPI:
         response = requests.post(self.api_url, headers=headers, json=payload)
         return response.json(), response.status_code == 200
 
-    def endpoint_generate(self, prompt, constraint=None):
+    def endpoint_generate(self, prompt, constraint=None, append_bos=False):
+        if append_bos:
+            prompt = self.tokenizer.bos_token + prompt
         if constraint is not None:
             payload = {
                 "inputs": prompt,
@@ -57,12 +57,12 @@ class HFEndpointAPI:
         q, success = self.query(payload=payload)
         return q, success
 
-    def query_model(self, prompt, pred_method="logprob"):
+    def query_model(self, prompt, pred_method="logprob", append_bos=False):
         # Remember there will be an error if the model hasn't been pinged in the
         # past hour -- it goes to sleep, then will take a few minutes after you
         # ping it again to wake up.
         try:
-            response, success = self.endpoint_generate(prompt)
+            response, success = self.endpoint_generate(prompt, append_bos=append_bos)
         except OSError as e:
             response = e
             success = False
