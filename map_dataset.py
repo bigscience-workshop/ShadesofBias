@@ -89,10 +89,24 @@ class CleanDataset:
                 unique_values = self.get_unique_list_values(stats[col])
                 print("Unique Values", unique_values)
 
+    @staticmethod
+    def try_strip(x):
+        try:
+            # Strip if the cell is a string
+            if isinstance(x, str):
+                return x.strip()
+        except Exception as e:
+            # Just return the original value if there's an error
+            print(f"Error processing: {x}, Error: {e}")
+        return x
 
-def convert_dataset(col_map_path):
+
+# Apply the function to each element in the DataFrame
+
+
+def convert_dataset(col_map_path, df):
     cleaner = CleanDataset()
-    df = datasets.load_dataset("LanguageShades/BiasShades", split="train").to_pandas()
+    df = df.applymap(cleaner.try_strip)
 
     column_map = pd.read_csv(col_map_path)
 
@@ -134,13 +148,16 @@ def convert_dataset(col_map_path):
 
 if __name__ == "__main__":
     # file is https://docs.google.com/spreadsheets/d/1dyEYmsGW3i1MpSoKyuPofpbjqEkifUhdd19vVDQr848/edit?usp=sharing
-    df = convert_dataset("BiasShades_fields - columns.csv")
-    # df = datasets.Dataset.from_pandas(df)
-    # df = datasets.DatasetDict({"test": df})
-    # from huggingface_hub import HfApi, HfFolder
 
-    # # Replace 'your-username' with your Hugging Face username
-    # dataset_name = "jordiclive/test-shades"
+    df = datasets.load_dataset("LanguageShades/BiasShades", split="train").to_pandas()
 
-    # # Push the dataset to the hub
-    # df.push_to_hub(dataset_name)
+    df = convert_dataset("BiasShades_fields - columns.csv", df=df)
+    df = datasets.Dataset.from_pandas(df)
+    df = datasets.DatasetDict({"test": df})
+    from huggingface_hub import HfApi, HfFolder
+
+    # Replace 'your-username' with your Hugging Face username
+    dataset_name = "LanguageShades/FormattedBiasShades"
+
+    # Push the dataset to the hub
+    df.push_to_hub(dataset_name)
