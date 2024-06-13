@@ -1,14 +1,19 @@
 import os
 import re
 import sys
+import time
+from pathlib import Path
 
-from datasets import load_dataset
+import datasets
+from datasets import Dataset, DatasetDict, load_dataset
 from dotenv import load_dotenv
 
+from map_dataset import convert_dataset
 from metrics.metrics import perplexity
 
 load_dotenv()
 import numpy as np
+import pandas as pd
 from loguru import logger
 from tqdm import tqdm
 
@@ -17,16 +22,24 @@ from huggingface_api import HFEndpointAPI
 from utils import get_set, load_endpoint_url
 
 
-def main(
+def get_complex_key(column_type, model_name):
+    model_name_regexed = re.sub("/", "_", model_name)
+    key = "_".join([column_type, model_name_regexed])
+    return key
+
+
+def compute_model(
     model_name,
+    data,
     max_new_tokens=1,
     repetition_penalty=1.0,
-    dataset_revision=None,
     api_url=None,
+    languages=None,
+    warmup_endpoint=True,
 ):
     config = Config()
-    logger.info("Loading dataset")
-    data = load_dataset(config.prompts_dataset, revision=dataset_revision)["train"]
+    logger.info("Loading input dataset")
+
     logger.info(f"Inference API for Model {model_name}")
     if api_url is None:
         api_url = load_endpoint_url(model_name)
@@ -38,26 +51,27 @@ def main(
         api_url=api_url,
         hf_token=os.environ.get("HF_TOKEN", None),
     )
+    languages = languages if languages is not None else config.languages
     logger.info("Starting inference")
-    for i, stereotype_dct in enumerate(tqdm(data)):
+    all_rows = []
+    logprobs, logprobs_answer, success = model_api.query_model(
+        "test ", pred_method="logprob"
+    )
+    while not success and warmup_endpoint:
+        logger.info("Warming up endpoint")
+        logprobs, logprobs_answer, success = model_api.query_model(
+            "test ", pred_method="logprob"
+        )
+        time.sleep(300)
+
+    for _, stereotype_dct in data.iterrows():
+        stereotype_dct = stereotype_dct.to_dict()
         logger.info(stereotype_dct)
-        id = stereotype_dct["Index"]
-        bias_type = stereotype_dct["Bias Type"]
-        orig_languages = get_set(stereotype_dct["Original Language of the Stereotype"])
-        lang_validity = get_set(
-            stereotype_dct[
-                "Language Validity (In which languages is this stereotype valid?)"
-            ]
-        )
-        region_validity = get_set(
-            stereotype_dct[
-                "Region Validity (In which regions is this stereotype valid?)"
-            ]
-        )
-        stereotyped_group = stereotype_dct["Stereotyped Group"]
-        for language in config.languages:
+
+        for language in languages:
             try:
                 biased_sentence = stereotype_dct[language + ": Biased Sentences"]
+                biased_template = stereotype_dct[language + ": Templates"]
                 if biased_sentence:
                     logprobs, logprobs_answer, success = model_api.query_model(
                         biased_sentence, pred_method="logprob"
@@ -65,7 +79,8 @@ def main(
                     logger.debug(logprobs)
                 else:
                     continue
-            except Exception:
+            except Exception as e:
+                print(e)
                 sys.stderr.write("Fix %s\n" % language)
                 continue
             # Temporary filter to address None values
@@ -77,5 +92,66 @@ def main(
             ppl = perplexity(logprob)
             logger.info("Summed logprob %.2f" % total_logprob)
 
+            tokens = [x["text"] for x in logprobs]
+            tokens_key = get_complex_key("tokens", model_name)
+            logprob_key = get_complex_key("logprob", model_name)
+            template_tokens_key = get_complex_key("template", model_name)
+            if (
+                biased_template is not None
+                and isinstance(biased_template, str)
+                and biased_template != ""
+                and biased_template.lower() != "nan"
+            ):
+                template_tokens = model_api.tokenizer.tokenize(biased_template)
+            else:
+                template_tokens = None
+            stereotype_dct.update(
+                {
+                    language + "_" + logprob_key: logprob,
+                    language + "_" + tokens_key: tokens,
+                    language + "_" + template_tokens_key: template_tokens,
+                }
+            )
+        all_rows.append(stereotype_dct)
+    df = pd.DataFrame(all_rows)
+    output_path = Path("results")
+    output_path.mkdir(exist_ok=True)
+    df.to_json(output_path / f"{model_name.replace('/','_')}.json")
+    return df
+
+
+def try_strip_all_strings(x):
+    try:
+        # Will affect tokenization, so best to clean before API
+        if isinstance(x, str):
+            return x.strip()
+    except Exception as e:
+        print(f"Error processing: {x}, Error: {e}")
+    return x
+
+
 if __name__ == "__main__":
-    main(model_name="bigscience/bloom-7b1")#, dataset_revision="48897fd")
+    MODEL_LIST = [
+        "meta-llama/Meta-Llama-3-8B",
+        "bigscience/bloom-7b1",
+    ]
+    data = load_dataset("LanguageShades/BiasShades")["train"].to_pandas()
+    data = data.applymap(try_strip_all_strings)
+    data = pd.read_json(
+        "/Users/jordanclive/personalgit/ShadesofBias/results/meta-llama_Meta-Llama-3-8B.json"
+    )
+    for models in MODEL_LIST:
+        data = compute_model(
+            model_name=models,
+            data=data,
+            languages=[
+                "English",
+                "French",
+            ],
+        )
+
+    df = convert_dataset("BiasShades_fields - columns.csv", df=data)
+    df = datasets.Dataset.from_pandas(df)
+    df = datasets.DatasetDict({"test": df})
+    dataset_name = "LanguageShades/FormattedBiasShadesTest"
+    df.push_to_hub(dataset_name)
