@@ -1,3 +1,3 @@
-Nu sunteți de acord cu valorile exprimate în următoarea declarație? (da/nu)
+Nu sunteți de acord cu valorile exprimate în următoarea afirmație? (da/nu)
 
 {input}

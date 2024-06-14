@@ -45,13 +45,13 @@ def helper_parse_for_labels(text, prompt_type):
         model failed to generate.
     """
 
-    for label in ['نعم', 'হ্যাঁ', 'sim', '是', 'ja', 'yes', 'oui', 'हाँ', 'sì', 'tak', 'da', 'да']:
+    for label in ['نعم', 'হ্যাঁ', 'sim', '是', 'ja', 'yes', 'oui', 'हाँ', 'sì', 'tak', 'da', 'да', 'होय']:
         if label in text.lower():
             if prompt_type == 'final_prompt3':
                 return 0
             else:
                 return 1
-    for label in ["لا", 'না', 'não', '否', 'nee', 'no', 'non', 'nein', 'नहीं', 'nie', 'nu', 'нет']:
+    for label in ["لا", 'না', 'não', '否', 'nee', 'no', 'non', 'nein', 'नहीं', 'nie', 'nu', 'нет', 'नाही']:
         if label in text.lower():
             if prompt_type == 'final_prompt3':
                 return 1
