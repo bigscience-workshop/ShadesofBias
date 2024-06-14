@@ -1,6 +1,7 @@
 import os
-import re
 import pdb
+import re
+
 
 def load_endpoint_url(model_name):
     env_var_key = "MODEL_" + re.sub(r"\W", "_", model_name).upper()
@@ -17,6 +18,7 @@ def get_set(entry):
     if entry:
         return [i.strip() for i in entry.split(",")]
 
+
 def format_single_prompt(biased_sentence, promptparams):
     """
     biased_sentence: A string of biased sentence
@@ -32,14 +34,14 @@ def format_single_prompt(biased_sentence, promptparams):
     curr_prompt_file.close()
     # Format the prompt
     return prompt_template.format(input=biased_sentence)
-    
+
 
 def helper_parse_for_labels(text, labels):
     """
     text: text returned by inference
-    labels: A list of available labels for the current format. The order 
+    labels: A list of available labels for the current format. The order
         has to be correspond to the labels
-    Returns: The corresponding label of the generated text. Return None if 
+    Returns: The corresponding label of the generated text. Return None if
         model failed to generate.
     """
     for idx, label in enumerate(labels):

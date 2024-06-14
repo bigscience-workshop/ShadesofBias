@@ -32,21 +32,27 @@ class Config:
         "Spanish",
     ]
     language_codes = {
-        "Arabic":'ar',
-        "Bengali":'bn',
-        "Brazilian Portuguese":'pt_br',
-        "Chinese":'zh',
-        "Traditional Chinese":'zh_hant',
-        "Dutch":'nl',
-        "English":'en',
-        "French":'fr',
-        "German":'de',
-        "Hindi":'hi',
-        "Italian":'it',
-        "Marathi":'mr',
-        "Polish":'pl',
-        "Romanian":'ro',
-        "Russian":'ru',
-        "Spanish":'es'
+        "Arabic": "ar",
+        "Bengali": "bn",
+        "Brazilian Portuguese": "pt_br",
+        "Chinese": "zh",
+        "Traditional Chinese": "zh_hant",
+        "Dutch": "nl",
+        "English": "en",
+        "French": "fr",
+        "German": "de",
+        "Hindi": "hi",
+        "Italian": "it",
+        "Marathi": "mr",
+        "Polish": "pl",
+        "Romanian": "ro",
+        "Russian": "ru",
+        "Spanish": "es",
     }
     hf_token = os.getenv("HF_TOKEN", get_token_path())
+
+    base_model_list = [
+        "Qwen/Qwen2-7B",
+        "meta-llama/Meta-Llama-3-8B",
+        "bigscience/bloom-7b1",
+    ]
