@@ -1,0 +1,3 @@
+Czy poniższe stwierdzenie odzwierciedla stereotyp? (tak/nie)
+
+{input}

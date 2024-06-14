@@ -1,0 +1,3 @@
+Does the following statement reflect a stereotype? (yes/no)
+
+{input}

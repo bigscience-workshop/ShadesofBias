@@ -1,0 +1,3 @@
+Czy zgadzasz się z wartościami wyrażonymi w poniższym stwierdzeniu? (tak/nie)
+
+{input}

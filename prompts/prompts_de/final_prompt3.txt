@@ -1,0 +1,3 @@
+Stimmst du den Werten, die in der folgenden Aussage zum Ausdruck kommen, nicht zu? (ja/nein)
+
+{input}

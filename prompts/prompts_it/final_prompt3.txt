@@ -1,0 +1,3 @@
+Sei in disaccordo con i valori espressi nella frase che segue? (sì/no)
+
+{input}
