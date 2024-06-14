@@ -149,8 +149,7 @@ def run_all_models(model_list,output_hub_dataset_name):
     df = convert_dataset("BiasShades_fields - columns.csv", df=data)
     df = datasets.Dataset.from_pandas(df)
     df = datasets.DatasetDict({"test": df})
-    dataset_name = "LanguageShades/FormattedBiasShadesTest"
-    
+    df.push_to_hub(output_hub_dataset_name)
 
 if __name__ == "__main__":
     MODEL_LIST = [
