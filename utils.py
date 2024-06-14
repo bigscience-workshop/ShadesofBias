@@ -19,7 +19,7 @@ def get_set(entry):
         return [i.strip() for i in entry.split(",")]
 
 
-def format_single_prompt(biased_sentence, promptparams):
+def format_single_prompt(biased_sentence, promptparams, prompt_lang):
     """
     biased_sentence: A string of biased sentence
     promptparams: A dict of parameters for prompt curation
@@ -28,7 +28,7 @@ def format_single_prompt(biased_sentence, promptparams):
     returns: A string of formatted prompt
     """
     # Load the corresponding prompt template
-    prompt_file = f"prompts/prompts_{promptparams['prompt_lang']}/{promptparams['prompt_name']}.txt"
+    prompt_file = f"prompts/prompts_{prompt_lang}/{promptparams['prompt_name']}.txt"
     curr_prompt_file = open(prompt_file, "r")
     prompt_template = curr_prompt_file.read()
     curr_prompt_file.close()
@@ -36,7 +36,7 @@ def format_single_prompt(biased_sentence, promptparams):
     return prompt_template.format(input=biased_sentence)
 
 
-def helper_parse_for_labels(text, labels):
+def helper_parse_for_labels(text, prompt_type):
     """
     text: text returned by inference
     labels: A list of available labels for the current format. The order
@@ -44,8 +44,19 @@ def helper_parse_for_labels(text, labels):
     Returns: The corresponding label of the generated text. Return None if
         model failed to generate.
     """
-    for idx, label in enumerate(labels):
+
+    for label in ['نعم', 'হ্যাঁ', 'sim', '是', 'ja', 'yes', 'oui', 'हाँ', 'sì', 'tak', 'da', 'да']:
         if label in text.lower():
-            return idx
+            if prompt_type == 'final_prompt3':
+                return 0
+            else:
+                return 1
+    for label in ["لا", 'না', 'não', '否', 'nee', 'no', 'non', 'nein', 'नहीं', 'nie', 'nu', 'нет']:
+        if label in text.lower():
+            if prompt_type == 'final_prompt3':
+                return 1
+            else:
+                return 0
+
     # A failed prediction
     return -1

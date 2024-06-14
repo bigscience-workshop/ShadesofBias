@@ -23,16 +23,16 @@ from utils import (
 
 def main(
     model_name,
-    max_new_tokens=1,
+    max_new_tokens=5,
     repetition_penalty=1.0,
     dataset_revision=None,
     api_url=None,
-    promptparams={"prompt_lang": "en", "prompt_name": "reflect"},
+    promptparams={"prompt_name": "reflect"},
 ):
     config = Config()
     logger.info("Loading dataset")
     data = load_dataset(config.prompts_dataset, revision=dataset_revision)["train"]
-    data = data.shuffle(seed=42).select(range(2))
+    data = data.shuffle(seed=42).select(range(1))
     logger.info(f"Inference API for Model {model_name}")
     if api_url is None:
         api_url = load_endpoint_url(model_name)
@@ -44,6 +44,7 @@ def main(
         api_url=api_url,
         hf_token=os.environ.get("HF_TOKEN", None),
     )
+    print(model_api)
     logger.info("Starting inference")
 
     preds = dict()
@@ -82,10 +83,12 @@ def main(
                 biased_sentence = stereotype_dct[language + ": Biased Sentences"]
                 if biased_sentence:
                     # Prompt formatting
-                    prompt = format_single_prompt(biased_sentence, promptparams)
+                    prompt = format_single_prompt(biased_sentence, promptparams, config.language_codes[language])
                     generated_text, success = model_api.query_model(
                         prompt, pred_method="rawgen"
                     )
+                    print(prompt)
+                    print(generated_text[len(prompt) :])
                 else:
                     continue
             except KeyError:
@@ -93,7 +96,7 @@ def main(
                 continue
             # Parse for lables in generated text
             pred_label = helper_parse_for_labels(
-                generated_text[len(prompt) :], labels=["no", "yes"]
+                generated_text[len(prompt) :], promptparams['prompt_name']
             )
             logger.info(f"Predicted Label: {pred_label}")
             preds[f"pred_label{language}"][i] = pred_label
@@ -115,7 +118,7 @@ def main(
 
 if __name__ == "__main__":
     main(
-        model_name="bigscience/bloom-7b1",
+        model_name="bigscience/bloomz-7b1",
         dataset_revision="48897fd",
-        promptparams={"prompt_lang": "en", "prompt_name": "reflect"},
+        promptparams={"prompt_name": "final_prompt3"},
     )
