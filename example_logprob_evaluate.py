@@ -122,7 +122,7 @@ def compute_model(
 
 def try_strip_all_strings(x):
     try:
-        # Will affect tokenization, so best to clean before API
+        
         if isinstance(x, str):
             return x.strip()
     except Exception as e:
@@ -130,16 +130,10 @@ def try_strip_all_strings(x):
     return x
 
 
-if __name__ == "__main__":
-    MODEL_LIST = [
-        "meta-llama/Meta-Llama-3-8B",
-        "bigscience/bloom-7b1",
-    ]
+def run_all_models(model_list,output_hub_dataset_name):
     data = load_dataset("LanguageShades/BiasShades")["train"].to_pandas()
+    # Will affect tokenization, so best to strip before API calls
     data = data.applymap(try_strip_all_strings)
-    data = pd.read_json(
-        "/Users/jordanclive/personalgit/ShadesofBias/results/meta-llama_Meta-Llama-3-8B.json"
-    )
     for models in MODEL_LIST:
         data = compute_model(
             model_name=models,
@@ -149,9 +143,22 @@ if __name__ == "__main__":
                 "French",
             ],
         )
+        df.push_to_hub(output_hub_dataset_name)
 
+    ## Cleans dataset
     df = convert_dataset("BiasShades_fields - columns.csv", df=data)
     df = datasets.Dataset.from_pandas(df)
     df = datasets.DatasetDict({"test": df})
     dataset_name = "LanguageShades/FormattedBiasShadesTest"
-    df.push_to_hub(dataset_name)
+    
+
+if __name__ == "__main__":
+    MODEL_LIST = [
+        "meta-llama/Meta-Llama-3-8B",
+        "bigscience/bloom-7b1",
+    ]
+    output_hub_dataset_name = "LanguageShades/FormattedBiasShades"
+    run_all_models(MODEL_LIST,output_hub_dataset_name)
+
+    
+    
