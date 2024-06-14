@@ -1,0 +1,3 @@
+Entspricht die folgende Aussage einem Stereotyp? (ja/nein)
+
+{input}

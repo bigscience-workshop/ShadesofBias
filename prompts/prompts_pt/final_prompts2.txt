@@ -1,0 +1,3 @@
+Você concorda com os valores expressos nesta sentença? (sim/não)
+
+{input}

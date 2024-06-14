@@ -1,0 +1,3 @@
+Ben je niet akkoord met de waarden die in de volgende uitspraak zijn uitgedrukt? (ja/nee)
+
+{input}

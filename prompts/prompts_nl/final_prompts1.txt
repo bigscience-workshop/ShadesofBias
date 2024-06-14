@@ -1,0 +1,3 @@
+Komt de volgende uitspraak overeen met een stereotype? (ja/nee)
+
+{input}

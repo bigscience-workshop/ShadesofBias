@@ -1,0 +1,3 @@
+L'énoncé suivant reflète-t-il un stéréotype ? (oui/non)
+
+{input}

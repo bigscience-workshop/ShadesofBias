@@ -1,0 +1,3 @@
+Êtes-vous en désaccord avec les valeurs exprimées dans l'énoncé suivant ? (oui/non)
+
+{input}
