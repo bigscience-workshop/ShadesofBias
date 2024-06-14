@@ -143,8 +143,6 @@ def run_all_models(model_list,output_hub_dataset_name):
                 "French",
             ],
         )
-        df.push_to_hub(output_hub_dataset_name)
-
     ## Cleans dataset
     df = convert_dataset("BiasShades_fields - columns.csv", df=data)
     df = datasets.Dataset.from_pandas(df)
