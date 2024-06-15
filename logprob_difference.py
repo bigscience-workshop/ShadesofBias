@@ -2,6 +2,7 @@ import pandas as pd
 from datasets import load_dataset
 import plotly.express as px
 import re
+from config import Config
 
 GROUP1_STR = 'females'
 GROUP2_STR = 'males'
@@ -67,8 +68,9 @@ def calculate_logprob_difference(subset_df, langs, models):
     return results
 
 def process_data(df):
-    langs = ['en', 'es', 'ru', 'bn', 'zh', 'nl', 'fr', 'de', 'hi', 'it', 'mr', 'pl', 'ro', 'ru']
-    models = ['meta-llama_Meta-Llama-3-8B']
+    config = Config()
+    langs = ['en', 'fr', 'zh'] #config.language_codes.values() #['en', 'es', 'ru', 'bn', 'zh', 'nl', 'fr', 'de', 'hi', 'it', 'mr', 'pl', 'ro', 'ru']
+    models = ['bigscience_bloom-7b1']
     gendered_dfs = {}
     for gender_identity in (GROUP1_STR, GROUP2_STR):
         bias_df = pd.DataFrame()
@@ -119,7 +121,7 @@ def generate_boxplot(bias_df, identity=None):
     fig.show()
 
 if __name__ == "__main__":
-    df = pd.DataFrame(load_dataset("LanguageShades/BiasShadesBaseEval_meta-llama_Meta-Llama-3-8B")['test']).dropna(subset=['index'])
+    df = pd.DataFrame(load_dataset("LanguageShades/BiasShadesBaseEval_bigscience_bloom-7b1")['test']).dropna(subset=['index'])
     bias_dict = process_data(df)
     generate_boxplot(bias_dict[GROUP1_STR], GROUP1_STR)
     generate_boxplot(bias_dict[GROUP2_STR], GROUP2_STR)
