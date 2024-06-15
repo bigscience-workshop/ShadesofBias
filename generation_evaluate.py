@@ -1,6 +1,7 @@
 import json
 import os
 import sys
+import pdb
 
 from datasets import load_dataset
 from dotenv import load_dotenv
@@ -31,8 +32,7 @@ def main(
 ):
     config = Config()
     logger.info("Loading dataset")
-    data = load_dataset(config.prompts_dataset, revision=dataset_revision)["train"]
-    #data = data.shuffle(seed=42).select(range(3))
+    data = load_dataset(config.prompts_dataset)["train"]
     logger.info(f"Inference API for Model {model_name}")
     if api_url is None:
         api_url = load_endpoint_url(model_name)
@@ -87,6 +87,7 @@ def main(
                 if biased_sentence:
                     # Prompt formatting
                     prompt = format_single_prompt(biased_sentence, promptparams, config.language_codes[language])
+                    
                     generated_text, success = model_api.query_model(
                         prompt, pred_method="rawgen"
                     )
@@ -116,6 +117,8 @@ def main(
             metrics[language + "_acc"] = accuracy_by_lang(
                 data, preds=preds[f"pred_label{language}"]
             )
+            # Count the amount of failed predictions
+            metrics[language + "_degenerate_rate"] = preds[f"pred_label{language}"].count(-1) / len(preds[f"pred_label{language}"])
         except:
             logger.error(f"No pred for {language}")
     
@@ -123,12 +126,14 @@ def main(
     with open(f"preds/metrics_{model_to_save}{promptparams['prompt_name']}.json", "w") as outfile:
         json.dump(metrics, outfile)
     
-    data.save_to_disk(f"preds/pred_generate_{model_to_save}{promptparams['prompt_name']}")
+    with open(f"preds/gen_predictions/{model_to_save}{promptparams['prompt_name']}.json", "w") as outfile:
+        json.dump(preds, outfile)
 
 
 if __name__ == "__main__":
     main(
-        model_name="mistralai/Mistral-7B-Instruct-v0.3",
+        model_name="bigscience/bloom-7b1",
+        api_url="https://ywckqfxbxcetceeq.us-east-1.aws.endpoints.huggingface.cloud",
         dataset_revision="d59ff37",
         promptparams={"prompt_name": "final_prompt3"},
     )
