@@ -68,9 +68,8 @@ def calculate_logprob_difference(subset_df, langs, models):
     return results
 
 def process_data(df):
-    config = Config()
     langs = ['en', 'fr', 'zh'] #config.language_codes.values() #['en', 'es', 'ru', 'bn', 'zh', 'nl', 'fr', 'de', 'hi', 'it', 'mr', 'pl', 'ro', 'ru']
-    
+    models = ['bigscience_bloom-7b1','meta-llama_Meta-Llama-3-8B','mistralai_Mistral-7B-v0.1','Qwen_Qwen2-7B']
     gendered_dfs = {}
     for gender_identity in (GROUP1_STR, GROUP2_STR):
         bias_df = pd.DataFrame()
@@ -121,21 +120,7 @@ def generate_boxplot(bias_df, identity=None):
     fig.show()
 
 if __name__ == "__main__":
-    models = ['mistralai_Mistral-7B-v0.1']#, 'bigscience_bloom-7b1']
-
-    bias_all_models_g1 = pd.DataFrame()
-    bias_all_models_g2 = pd.DataFrame()
-
-    for model_name in models:
-        df = pd.DataFrame(load_dataset(f"LanguageShades/BiasShadesBaseEval_{model_name}")['test']).dropna(subset=['index'])
-        bias_dict = process_data(df)
-
-        bias_all_models_g1 = pd.concat([bias_all_models_g1, bias_dict[GROUP1_STR]])
-        bias_all_models_g2 = pd.concat([bias_all_models_g2, bias_dict[GROUP2_STR]])
-
-        ######### TO DELETE #########
-        bias_all_models_g1.loc[bias_all_models_g1.tail(20).index, 'model'] = 'test_model'
-        ##############################
-    
-    generate_boxplot(bias_all_models_g1, GROUP1_STR)
-    generate_boxplot(bias_all_models_g2, GROUP2_STR)
+    df = pd.DataFrame(load_dataset("LanguageShades/BiasShadesBaseEval_ALL")['test']).dropna(subset=['index'])
+    bias_dict = process_data(df)
+    generate_boxplot(bias_dict[GROUP1_STR], GROUP1_STR)
+    generate_boxplot(bias_dict[GROUP2_STR], GROUP2_STR)
