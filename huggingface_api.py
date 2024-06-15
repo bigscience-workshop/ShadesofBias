@@ -32,8 +32,12 @@ class HFEndpointAPI:
         return response.json(), response.status_code == 200
 
     def endpoint_generate(self, prompt, constraint=None, append_bos=False):
+        if self.tokenizer.bos_token:
+            bos_token = self.tokenizer.bos_token
+        else:
+            bos_token = ''
         if append_bos:
-            prompt = self.tokenizer.bos_token + prompt
+            prompt = bos_token + prompt
         if constraint is not None:
             payload = {
                 "inputs": prompt,
