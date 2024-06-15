@@ -5,6 +5,7 @@ import re
 
 def load_endpoint_url(model_name):
     env_var_key = "MODEL_" + re.sub(r"\W", "_", model_name).upper()
+    print(env_var_key)
     endpoint_url = os.getenv(env_var_key)
     if endpoint_url:
         return endpoint_url

@@ -32,7 +32,7 @@ def main(
     config = Config()
     logger.info("Loading dataset")
     data = load_dataset(config.prompts_dataset, revision=dataset_revision)["train"]
-    data = data.shuffle(seed=42).select(range(1))
+    #data = data.shuffle(seed=42).select(range(3))
     logger.info(f"Inference API for Model {model_name}")
     if api_url is None:
         api_url = load_endpoint_url(model_name)
@@ -44,7 +44,6 @@ def main(
         api_url=api_url,
         hf_token=os.environ.get("HF_TOKEN", None),
     )
-    print(model_api)
     logger.info("Starting inference")
 
     preds = dict()
@@ -52,13 +51,17 @@ def main(
         preds[f"pred_label{language}"] = [-1] * len(data)
 
     def update_with_labels(example):
-        if example["Index"] is not None and example["Index"].upper().isupper():
-            # If it's a contrastive instance, then it is
-            # only an overgeneralization instead of stereotype
-            example["gold"] = 0
+        if example["Index"] is not None:
+            if example["Subset"] == '_original' or example["Subset"] is None:
+                example["gold"] = 1
+            else:
+                # If it's a contrastive instance, then it is
+                # only an overgeneralization instead of stereotype
+                example["gold"] = 0
         else:
-            example["gold"] = 1
+            example["gold"] = 0
         return example
+
 
     data = data.map(update_with_labels)
 
@@ -87,8 +90,8 @@ def main(
                     generated_text, success = model_api.query_model(
                         prompt, pred_method="rawgen"
                     )
-                    print(prompt)
-                    print(generated_text[len(prompt) :])
+                    #print(prompt)
+                    #print(generated_text[len(prompt) :])
                 else:
                     continue
             except KeyError:
@@ -100,6 +103,10 @@ def main(
             )
             logger.info(f"Predicted Label: {pred_label}")
             preds[f"pred_label{language}"][i] = pred_label
+    
+
+    for language in config.languages:
+        data = data.add_column(f"{language}: Pred label", preds[f"pred_label{language}"])
     # Save the final data to preds/
     metrics = {
         "aggregate_acc": accuracy_aggregate(data=data, preds=preds),
@@ -111,14 +118,17 @@ def main(
             )
         except:
             logger.error(f"No pred for {language}")
-    with open("preds/metrics.json", "w") as outfile:
+    
+    model_to_save = model_name.split('/')[1]
+    with open(f"preds/metrics_{model_to_save}{promptparams['prompt_name']}.json", "w") as outfile:
         json.dump(metrics, outfile)
-    data.save_to_disk(f"preds/pred_generate_{promptparams['prompt_name']}")
+    
+    data.save_to_disk(f"preds/pred_generate_{model_to_save}{promptparams['prompt_name']}")
 
 
 if __name__ == "__main__":
     main(
-        model_name="bigscience/bloomz-7b1",
-        dataset_revision="48897fd",
+        model_name="mistralai/Mistral-7B-Instruct-v0.3",
+        dataset_revision="d59ff37",
         promptparams={"prompt_name": "final_prompt3"},
     )
