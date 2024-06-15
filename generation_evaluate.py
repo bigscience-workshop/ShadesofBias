@@ -47,8 +47,10 @@ def main(
     logger.info("Starting inference")
 
     preds = dict()
+    preds_raw = dict()
     for language in config.languages:
         preds[f"pred_label{language}"] = [-1] * len(data)
+        preds_raw[f"pred_{language}"] = [""] * len(data)
 
     def update_with_labels(example):
         if example["Index"] is not None:
@@ -104,6 +106,7 @@ def main(
             )
             logger.info(f"Predicted Label: {pred_label}")
             preds[f"pred_label{language}"][i] = pred_label
+            preds_raw[f"pred_{language}"][i] = generated_text[len(prompt) :]
     
 
     for language in config.languages:
@@ -128,12 +131,28 @@ def main(
     
     with open(f"preds/gen_predictions/{model_to_save}{promptparams['prompt_name']}.json", "w") as outfile:
         json.dump(preds, outfile)
+    with open(f"preds/gen_predictions/raw_predictions_{model_to_save}{promptparams['prompt_name']}.json", "w") as outfile:
+        json.dump(preds, outfile)
 
 
 if __name__ == "__main__":
     main(
-        model_name="bigscience/bloom-7b1",
+        model_name="bigscience/bloomz-7b1",
         api_url="https://ywckqfxbxcetceeq.us-east-1.aws.endpoints.huggingface.cloud",
         dataset_revision="d59ff37",
         promptparams={"prompt_name": "final_prompt3"},
     )
+
+    # main(
+    #     model_name="Qwen/Qwen2-7B-Instruct",
+    #     api_url="https://n2qg2ivyffdecg83.us-east-1.aws.endpoints.huggingface.cloud",
+    #     dataset_revision="d59ff37",
+    #     promptparams={"prompt_name": "final_prompt3"},
+    # )
+
+    # main(
+    #     model_name="mistralai/Mistral-7B-Instruct-v0.3",
+    #     api_url="https://jv59brny0fllpy4w.us-east-1.aws.endpoints.huggingface.cloud",
+    #     dataset_revision="d59ff37",
+    #     promptparams={"prompt_name": "final_prompt3"},
+    # )
