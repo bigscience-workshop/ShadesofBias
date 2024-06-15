@@ -121,7 +121,7 @@ def generate_boxplot(bias_df, identity=None):
     fig.show()
 
 if __name__ == "__main__":
-    models = ['bigscience_bloom-7b1','bigscience_bloom-7b1']
+    models = ['mistralai_Mistral-7B-v0.1', 'bigscience_bloom-7b1']
 
     bias_all_models_g1 = pd.DataFrame()
     bias_all_models_g2 = pd.DataFrame()
