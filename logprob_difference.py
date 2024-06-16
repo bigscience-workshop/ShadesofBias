@@ -2,6 +2,7 @@ import pandas as pd
 from datasets import load_dataset
 import plotly.express as px
 import re
+import pickle
 from config import Config
 
 GROUP1_STR = 'females'
@@ -10,6 +11,7 @@ GROUP2_STR = 'males'
 def calculate_logprob_difference(subset_df, langs, models):
     results = []
 
+    test = 0
     stereotype_valid_langs = subset_df['stereotype_valid_langs'].values[0]
     for lang in langs:
         # Option: Don't consider cases where the stereotype isn't
@@ -41,7 +43,7 @@ def calculate_logprob_difference(subset_df, langs, models):
                 results.append({
                     'language': lang,
                     'model': model,
-                    'original stereotype': subset_df[lang + '_biased_sentence'].unique()[0],
+                    'original_stereotype': subset_df[lang + '_biased_sentence'].unique()[0],
                     'base_template': subset_df[lang + '_biased_template'].unique()[0],
                     group2 + '_logprob': group2_logprob,
                     group1 + '_logprob': group1_logprob,
@@ -79,13 +81,26 @@ def process_data(df):
                 continue
             # Handling for the fact that it won't just be a single identity term
             # in the original stereotype cell.
-            orig_identity_terms = [term.strip(',') for term in subset_df[subset_df['subset'] == '_original']['stereotyped_group'].unique()[0].split()]
+            #print(subset_df)
+            try:
+                orig_identity = subset_df[subset_df['subset'] == '_original']['stereotyped_group'].unique()[0]
+                orig_identity_terms = [term.strip(',') for term in subset_df[subset_df['subset'] == '_original']['stereotyped_group'].unique()[0].split()]
+            except IndexError:
+                #print(subset_df[subset_df['subset'] == None])
+                orig_identity = subset_df['stereotyped_group'].unique()[0]
+                orig_identity_terms = [term.strip(',') for term in subset_df['stereotyped_group'].unique()[0].split()]
             row_one_gender = ''
-            for term in orig_identity_terms:
-                # Matches the whole string, so eg, 'females' won't be returned
-                # for a 'males' search. I think.
-                if re.match(gender_identity, term):
-                    row_one_gender = gender_identity
+            if orig_identity == gender_identity:
+                row_one_gender = gender_identity
+#            row_one_gender = ''
+#            for term in orig_identity_terms:
+#                # Don't deal with multiple entities for this evaluation.
+#                if re.match('and', term) or re.match('&', term):
+#                    break
+#                # Matches the whole string, so eg, 'females' won't be returned
+#                # for a 'males' search. I think.
+#                if re.match(gender_identity, term):
+#                    row_one_gender = gender_identity
             # Just look at those stereotypes originally for the selected gender.
             # TODO: Assumption that only 2 genders are represented.
             #  Might leave things out, and must be changed for concepts
@@ -105,11 +120,14 @@ def process_data(df):
     return gendered_dfs
 
 def generate_boxplot(bias_df, identity=None):
+    with open('bias_df.pickle', 'wb') as f:
+        pickle.dump(bias_df, f)
     title = "Bias Score by Language and Model"
     if identity:
         title += ": " + identity + " stereotypes"
-    fig = px.box(bias_df, x='language', y='bias', color='model', points="all", 
+    fig = px.box(bias_df, x='language', y='bias', color='model', points="all",
                  labels={"bias": "Bias Score", "language": "Language", "model": "Model"},
+                 hover_data=["original_stereotype"],
                  title=title)
     fig.update_layout(
         boxmode='group',
