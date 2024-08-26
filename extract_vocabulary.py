@@ -1,51 +1,87 @@
 # -*- coding: utf-8 -*-
-import pandas as pd
-import os
-from typing import List
-import datasets
-import config
-import collections
 
-import os
 import re
-import sys
+from collections import defaultdict
 
-from datasets import load_dataset, Dataset, DatasetDict
+import datasets
 from dotenv import load_dotenv
 
-from metrics.metrics import perplexity
+import config
 
 load_dotenv()
-import numpy as np
-from loguru import logger
 from tqdm import tqdm
 
-from config import Config
-from huggingface_api import HFEndpointAPI
-from utils import get_set, load_endpoint_url
+from utils import get_set
 from collections import Counter
 
 config = config.Config()
 
-dataset = datasets.load_dataset("LanguageShades/BiasShades")['train']
+# TODO: Fix the fact that LKW-Fahrerin and LKW-Fahrer really oughtn't be
+# TODO(cont): a false positive for a template slot.
+special_words = ["LKW", "AIDS", "SIDA", "LKW-F", "LKW-Fahrerin", "LKW-Fahrer", "ADHD", "TDAH", "EUA", "ADHS", "RPA", "TDHA"]
+expected_types = ["AGE", "BODY_HAIRCOLOR", "BODY_HEIGHT", "BODY_SKIN_COLOR", "BODY_WEIGHT", "BODY_WEIGHT_STATE", "CLOTHING_HEAD", "DISABILITY", "ETHNICITY", "FAMILY_REL", "FIELD", "GENDER", "GENDER+AGE", "GENDER_POSS", "GENDER_RELATIVE_PRONOUN", "LANGUAGE", "MENTAL_ISSUE", "MENTAL_ISSUE_ACTIVITY", "MENTAL_ISSUE_STATE", "NATION", "NATIONALITY", "NATIONALITY_LOCALE", "OCCUPATION", "OCCUPATION+GENDER", "OCCUPATION_TYPE", "PHYSICAL_APPEARANCE", "POLITICAL_IDEA", "POLITICAL_IDENTITY", "SEXUAL_ORIENTATION", "SOCIO_EC", "URBANITY"]
+expected_mods = ["ADJ", "PL", "1", "2"]
+# I no longer recall why this seemed important to separate/mark differently
+# from the other mods.
+expected_gender = ["MASC", "FEM", "NEUT"]
+slot_descriptions = \
+    {"AGE": " - Phrases that refer to people by their age.",
+ "BODY_HAIRCOLOR": " - Phrases that refer to people by their haircolor.",
+ "BODY_HEIGHT": "- Phrases that refer to people by their height.",
+ "BODY_SKIN_COLOR": " - Phrases that refer to people by their skin color.",
+ "BODY_WEIGHT": " - Phrases that refer to people by their weight",
+ "BODY_WEIGHT_STATE": " - Phrases that refer to a particular type of body weight. NOT a reference to a person or group of people.",
+"CLOTHING_HEAD" : " - Phrases that refer to a piece of clothing on the head. NOT a reference to a person or group of people.",
+     "DISABILITY": " - Phrases that refer to people by their ability status.",
+ "ETHNICITY": " - Phrases that refer to people by their ethnicity.",
+ "FAMILY_REL": " - Phrases that refer to people as their relationship to someone in a family.",
+     "FIELD": " - Phrases that refer to an area of study. NOT a reference to a person or group of people.",
+ "GENDER": " - Phrases that refer to people by their gender.",
+     "GENDER+AGE": " - Phrases that refer to people by their gender and age.",
+ "GENDER_POSS": " - Possessive pronouns conveying the gender of the possessor.",
+     "GENDER_RELATIVE_PRONOUN": " - Relative pronouns conveying the gender of the person.",
+     "LANGUAGE": " - Phrases that refer to a language. NOT a reference to a person or group of people.",
+ "MENTAL_ISSUE": " - Phrases for mental issues.  NOT a reference to a person or group of people.",
+     "MENTAL_ISSUE_ACTIVITY": " - Phrases for activities that have to do with mental issues. NOT a reference to a person or group of people.",
+ "MENTAL_ISSUE_STATE": " - Phrases for mental issue states.  NOT a reference to a person or group of people.",
+ "NATION": " - Phrases for nations.  NOT a reference to a person or group of people.",
+ "NATIONALITY": " - Phrases that refer to people by their nationality.",
+     "NATIONALITY_LOCALE": " - Phrases that refer to people by a locale within a nation.",
+ "OCCUPATION": " - Phrases that refer to people by their occupation.",
+     "OCCUPATION+GENDER": " - Phrases that refer to people by their gendered occupation.",
+     "OCCUPATION_TYPE": " - Phrases for occupations.  NOT a reference to a person or group of people.",
+    "PHYSICAL_APPEARANCE": " - Phrases that refer to people by their physical appearance.",
+ "POLITICAL_IDEA": " - Phrases for political ideologies.  NOT a reference to a person or group of people.",
+ "POLITICAL_IDENTITY": " - Phrases that refer to people by their political ideology.",
+ "SEXUAL_ORIENTATION": " - Phrases that refer to people by their sexual orientation.",
+ "SOCIO_EC": " - Phrases that refer to people by their socioeconomic class.",
+ "URBANITY": " - Phrases that refer to people by the urban area they live in."}
+
+mod_descriptions = {
+    "-ADJ": " - Adjectives/descriptors. Describe singulars, no gender marked.",
+    "-PL": " - Plurals, no gender marked.",
+    "-ADJ-PL": " - Adjectives/descriptors. Describe plurals, no gender marked.",
+    ":FEM-ADJ-PL": " - Adjectives/descriptors. Describe feminine plurals.",
+    ":MASC-ADJ-PL": " - Adjectives/descriptors. Describe masculine plurals.",
+    ":MASC-ADJ": " - Adjectives/descriptors. Describe masculine singulars.",
+    ":MASC-PL": " - Masculine plurals.",
+    ":FEM-ADJ": " - Adjectives/descriptors. Describe feminine singulars.",
+    ":FEM-PL": " - Feminine plurals.",
+    ":FEM": " - Feminine singulars.",
+    ":MASC": " - Masculine singulars.",
+    ":NEUT": " - Neuter singulars.",
+    "": " - Singulars, no gender marked."
+}
+dataset = datasets.load_dataset("LanguageShades/BiasShadesRaw")['train']
+print("Dataset:")
 print(dataset)
 
 slot_re = re.compile('([A-Z]{2,}([:+_-]?[A-Z1-9]?)+)')
 
-# Set language to check
-lang = "English"
-templates_lang_col = f"{lang}: Templates"
-biased_sentence_lang_col = f"{lang}: Biased Sentences"
-
-print(dataset['Index'])
 cols = dataset.column_names
-#print(cols)
-#df_target_tab = df_target_tab.rename(columns={c: c.strip() for c in cols})
-#index_col = "Index" if "Index" in df_target_tab.columns else df_target_tab.columns[0]
 indices = dataset['Index']
 subsets = dataset['Subset']
 sentence_ids = [x for x in zip(indices, subsets)]
-print(sentence_ids)
 
 def extract_substring(bias_sentence, template_sentence):
     """
@@ -58,76 +94,126 @@ def extract_substring(bias_sentence, template_sentence):
     Returns:
     The substring in a that is not in b.
     """
-    #bias_sentence = "Men are from mars, women are from venus."
-    #template_sentence = "GENDER-PL are from mars, GENDER-PL are from venus."
-    normalizer = {"“":"\"", "”":"\"", "’":"'"}
-
-    #bias_sentence = "You're a man and you don't have a say over your wife?"
-    #template_sentence = "You're a GENDER-1 and you don't have a say over your GENDER-2_SPOUSE?"
+    print("Biased sentence: %s" % bias_sentence)
+    print("Template: %s" % template_sentence)
+    error = False
+    normalizer = {"“": "\"", "”": "\"", "’": "'"}
     bias_sentence = ' '.join(bias_sentence.split())
     for key, value in normalizer.items():
         bias_sentence = re.sub(key, value, bias_sentence)
     template_sentence = ' '.join(template_sentence.split())
+    # Handling for very common error.
+    if bias_sentence[-1] == "." and template_sentence[-1] != ".":
+        template_sentence += "."
     for key, value in normalizer.items():
         template_sentence = re.sub(key, value, template_sentence)
-    #print(bias_sentence)
-    #print(template_sentence)
-    # Currently only handling one match
-    slot_names_iter = slot_re.finditer(template_sentence)
-    #print([(m.start(0), m.end(0)) for m in slot_names_iter])
-    #print(slot_names_iter)
-    slot_vocab = {}
-    j = -1
-    for slot_span in slot_names_iter:
-        j += 1
+    slot_spans = list(slot_re.finditer(template_sentence))
+    slot_vocab = defaultdict(list)
+    while slot_spans != []:
+        slot_span = slot_spans[0]
         # longest match
         slot_name = slot_span.group()
+        # Corner case, when a template slot has been replaced by a
+        # special word that looks like a slot.
+        if slot_name in special_words:
+            slot_spans = slot_spans[1:]
+            continue
         #print("SLOT: %s" % slot_name)
         # The substrings on either side of the slot. These will match
         # in the biased sentence, god willing.
-        substrings = template_sentence.split(slot_name)
-        # Make it so that we just focus on one slot at a time.
-        substrings = [slot_re.sub('POOP', substr) for substr in substrings]
-        new_substrings = []
-        for substring in substrings:
-            split_substring = substring.split('POOP')
-            new_substrings += split_substring
-        substrings = new_substrings
-
-        prev_sentence = ""
-        vocab_list = []
-        for i in range(len(substrings)-1):
-            first_substring = substrings[i]
-            prev_sentence += first_substring
-            #print("First substring: %s" % first_substring)
-            next_substring = substrings[i+1]
-            #print("Second substring: %s" % next_substring)
-            next_substring_idx = bias_sentence.find(next_substring)
-            vocab = bias_sentence[len(prev_sentence):next_substring_idx]
-            prev_sentence += vocab
-            #print("VOCAB: %s" % vocab)
-            vocab_list += [vocab]
-        final_vocab = vocab_list[j]
-        if final_vocab == '':
+        temp_substrings = [template_sentence[:slot_span.start()],
+                           template_sentence[slot_span.end():]]
+        # Make it so that we just focus on one slot at a time:
+        temp_prev_substring = temp_substrings[0]
+        #print("First substring: %s" % temp_prev_substring)
+        temp_next_substring = temp_substrings[1]
+        #print("Second substring: %s" % temp_next_substring)
+        # If there are more slots in this sentence, get them out
+        # of the alignment; cut the next substring we consider up until
+        # that next slot.
+        if slot_re.findall(temp_prev_substring):
+            temp_prev_substring = slot_re.sub('POOP', temp_prev_substring)
+            temp_prev_substring_split = temp_prev_substring.split('POOP')
+            temp_prev_substring = temp_prev_substring_split[-1]
+        if slot_re.findall(temp_next_substring):
+            temp_next_substring = slot_re.sub('POOP', temp_next_substring)
+            temp_next_substring_split = temp_next_substring.split('POOP')
+            temp_next_substring = temp_next_substring_split[0]
+        # Position of the words in the bias sentence *before* the desired vocabulary
+        if temp_prev_substring == "":
+            # Start of sentence.
+            bias_prev_substring_idx = 0
+        else:
+            bias_prev_substring_idx = bias_sentence.rfind(
+                temp_prev_substring) + len(temp_prev_substring)
+        # Position of the words in the bias sentence *after* the desired vocabulary
+        if temp_next_substring == "":
+            # End of sentence.
+            bias_next_substring_idx = len(bias_sentence)
+        else:
+            bias_next_substring_idx = bias_sentence[
+                                      bias_prev_substring_idx:].find(
+                temp_next_substring) + bias_prev_substring_idx
+        # Vocabulary item from the biased sentence
+        vocab = bias_sentence[bias_prev_substring_idx:bias_next_substring_idx]
+        #print("VOCAB: %s" % vocab)
+        if vocab == "":
             print('\nCheck:')
             print(bias_sentence)
             print(template_sentence)
-        #print("VOCAB: %s" % final_vocab)
-        slot_name = re.sub('-[1-9]', '', slot_name)
-        if slot_name not in slot_vocab:
-            slot_vocab[slot_name] = {final_vocab.lower():1}
+            error = True
         else:
-            if final_vocab.lower() not in slot_vocab[slot_name]:
-                slot_vocab[slot_name][final_vocab.lower()] = 1
-            else:
-                slot_vocab[slot_name][final_vocab.lower()] += 1
-    return slot_vocab
+            # Remove the identifiers that distinguish multiple entities
+            # in one sentence -- this isn't relevant for the vocabulary.
+            slot_name = re.sub('-[1-9]', '', slot_name)
+            slot_vocab[slot_name] += [vocab]
+        # Fill in this part of the template with the right word,
+        # so we don't have to keep handling an already-solved template slot
+        # when we move on to the next slot.
+        template_sentence = "".join(
+            [temp_substrings[0], vocab, temp_substrings[1]])
+        slot_spans = list(slot_re.finditer(template_sentence))
+    return slot_vocab, error
 
-regional_stereotypes = {}
+def dissect_slot(slot):
+    split_slot = slot.split("-")
+    slot_head_tmp = split_slot[0].strip()
+    tags = []
+    for n in split_slot[1:]:
+        tags += n.split(":")
+    split_slot_head = slot_head_tmp.split(":")
+    slot_head = split_slot_head[0].strip()
+    tags += split_slot_head[1:]
+    return slot_head, tags
+
+def norm_slot(biased_template, tags):
+    error = False
+    slot_list = []
+    for g in expected_gender:
+        if g in tags:
+            slot_list += [":" + g]
+            tags.remove(g)
+    for mod in expected_mods:
+        if mod in tags:
+            slot_list += ["-" + mod]
+            tags.remove(mod)
+    if tags != []:
+        print("ISSUE WITH TAGS:")
+        print(tags)
+        print(biased_template)
+        error = True
+    return "".join(slot_list), error
+
+all_slots = defaultdict(lambda: Counter())
+slot_counter = Counter()
 for language in config.languages:
-    full_slot_vocab = {}
+    full_slot_vocab = defaultdict(lambda: defaultdict(Counter))
+    errors = []
     print("====== LANGUAGE: %s" % language)
     for i, stereotype_dct in enumerate(tqdm(dataset)):
+        if language + ": Templates" not in stereotype_dct:
+            #print("No template; continuing")
+            continue
         #logger.info(stereotype_dct)
         index = stereotype_dct["Index"]
         subset = stereotype_dct["Subset"]
@@ -152,22 +238,62 @@ for language in config.languages:
         is_expression = stereotype_dct[language + ": Is this a saying?"]
         comments = stereotype_dct[language + ": Comments"]
         if biased_template and biased_sentence:
-            slot_vocab = extract_substring(biased_sentence, biased_template)
-            #print(slot_vocab)
-            #print(full_slot_vocab)
+            slot_vocab, error = extract_substring(biased_sentence, biased_template)
             for slot in slot_vocab:
-                for word in slot_vocab[slot]:
-                    try:
-                        full_slot_vocab[slot][word] += 1
-                    except KeyError:
-                        try:
-                            full_slot_vocab[slot][word] = 1
-                        except KeyError:
-                            full_slot_vocab[slot] = {word: 1}
+                if slot in special_words:
+                    continue
+                bare_slot, tags = dissect_slot(slot)
+                slot_counter[bare_slot] += 1
+                mods, error = norm_slot(biased_template, tags)
+                all_slots[bare_slot + mods][language] += 1
+                for term in slot_vocab[slot]:
+                    full_slot_vocab[bare_slot][mods][term] += 1
+            if error:
+                errors += [(biased_sentence, biased_template)]
 
-    for slot, values in sorted(full_slot_vocab.items()):
-        print(slot)
-        for value in values:
-            if value == '':
-                continue
-            print('\t' + value)
+    with open("lexica/" + language + ".txt", "w+") as f:
+        f.write("Please check that the following lexicon is correct. If it is not, please update the corresponding template with the correct slot category. For reference, all slot types are listed at the bottom.\n\n")
+        for bare_slot, mods in sorted(full_slot_vocab.items()):
+            try:
+                slot_description = slot_descriptions[bare_slot]
+            except KeyError:
+                # Fix standardization issue
+                if bare_slot == "GENDER+OCCUPATION":
+                    bare_slot = "OCCUPATION+GENDER"
+                    slot_description = slot_descriptions[bare_slot]
+                else:
+                    slot_description = " - ERROR. Not a known slot. Typo?\n"
+            f.write("\n" + bare_slot + slot_description + "\n")
+            for mod in mods:
+                f.write("  " + mod + mod_descriptions[mod] + "\n")
+                values = full_slot_vocab[bare_slot][mod]
+                for value in values:
+                    if value == '':
+                        continue
+                    f.write('\t   ' + value + "\n")
+        f.write("\n=== LEXICON ISSUES ===\nThe following stereotype/template pairs couldn't be aligned; is there an error?\n")
+        for bias_tuple in errors:
+            biased_sentence = bias_tuple[0]
+            biased_template = bias_tuple[1]
+            f.write(biased_sentence + "\n")
+            f.write(biased_template + "\n")
+            f.write("\n")
+        f.write("\n\n")
+        f.write("=== FOR REFERENCE: TEMPLATE SLOT CATEGORIES ===\n")
+        f.write("Slot categories are made by concatenating a BASIC SLOT TYPE and MODIFIERS.\n")
+        f.write("== BASIC SLOT TYPES: ==\n")
+        for slot_type, slot_description in slot_descriptions.items():
+            f.write(slot_type + slot_description + "\n")
+        f.write("\n== MODIFIERS: ==\n")
+        for mod, mod_description in mod_descriptions.items():
+            if mod == "":
+                f.write(mod + "   (no additional marking; assumed as default)" + mod_description + "\n")
+            else:
+                f.write(mod + mod_description + "\n")
+        f.write("Finally, if there are multiple slots of the same type referring to different people, please add an additional -1, -2 etc., as an additional modifier tag on the template slot category, to disinguish them.")
+
+
+slots_counts = sorted(all_slots.items())
+for slot, languages in slots_counts:
+    print(slot)
+    print(languages)
