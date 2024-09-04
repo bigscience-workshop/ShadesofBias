@@ -104,9 +104,6 @@ class CleanDataset:
         return x
 
 
-# Apply the function to each element in the DataFrame
-
-
 def convert_dataset(col_map_path, df):
     """
     Normalizes the content across rows, separates dataset into different languages.
@@ -139,43 +136,7 @@ def convert_dataset(col_map_path, df):
     # This allows for a lot more, if they are there.
     contrast_letters = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p']
     for index in indices:
-        #try:
-        #    # Copy the bias_type across contrasts
-        #    df.loc[(df['index'] == index) & (df['subset'] == 'a'), "bias_type"] = df.loc[(df['index'] == index) &
-        #(df['subset'] == '_original'), "bias_type"].values
-        # #   # Copy the template across contrasts, for each language.
-        # #   # If there isn't a template for an _original, continue.
-        #  #  for lang in lang_codes:
-        #   #     try:
-        #            df.loc[(df['index'] == index) & (df['subset'] == 'a'), lang + "_templates"] = df.loc[(df[
-        #            'index'] == index) & (df['subset'] == '_original'), lang + "_templates"].values
-        #        except KeyError:
-        #            continue
-        #except ValueError:
-        #    print("Missing pairing for %.1f" % index)
-        #    continue
         df = copy_original_content_to_contrasts(df, index, lang_codes, contrast_letters)
-    print(df)
-    #sys.exit()
-    #df.loc[df['index'] == 1.0][df['Subset'] == 'a']["bias_type"] = "poop" #df[df['index'] == 1.0][df['Subset'] == '_original']["bias_type"]
-    #print(df[df['index'] == 1.0][df['Subset'] == 'a']["bias_type"])
-    #sys.exit()
-    #print(df.loc[df['index'] == 1.0][df['Subset'] == 'a']["bias_type"])
-    #print(df[df['index'] == 1.0])
-    #sys.exit()
-    #df.loc[df['Subset'] == 'a', "bias_type"] = df.loc[df['Subset'] == '_original', "bias_type"]
-    #print(df[df['Subset'] == '_original']['index'])
-    #indices = df['index'].unique()
-    #print(indices)
-    #print(df[df["Subset"] == "a"]["bias_type"])
-    #df.loc[:, df["Subset"] == "a"]["bias_type"] = df[df["Subset"] == "_original"]["bias_type"]
-    #print(df[df["Subset"] == "a"]["bias_type"])
-    #for idx in indices:
-    #    print(df.loc[df['index' == idx], "Subset"])
-    #print(df)
-    #sys.exit()
-
-    #sys.exit()
 
     df["stereotype_origin_langs"] = df["stereotype_origin_langs"].apply(
         cleaner.convert_to_list
@@ -230,19 +191,20 @@ def copy_original_content_to_contrasts(df, index, lang_codes, contrast_letters):
                     pass
     return df
 
+def main(
+    formatted_dataset_upload_path="LanguageShades/FormattedBiasShades",
+    raw_dataset_path="LanguageShades/BiasShadesRaw",
+    col_map_path="BiasShades_fields - columns.csv",
+):
+    # file is https://docs.google.com/spreadsheets/d/1dyEYmsGW3i1MpSoKyuPofpbjqEkifUhdd19vVDQr848/edit?usp=sharing
+    df = datasets.load_dataset(raw_dataset_path, split="train").to_pandas()
+    # TODO: Check how this columns.csv should be updated.
+    df = convert_dataset(col_map_path, df=df)
+    dataset_dict_test = datasets.Dataset.from_pandas(df)
+    # TODO: Break this down by language.
+    dataset_dict = datasets.DatasetDict({"test": dataset_dict_test})
+    dataset_dict.push_to_hub(formatted_dataset_upload_path)
+
 
 if __name__ == "__main__":
-    # file is https://docs.google.com/spreadsheets/d/1dyEYmsGW3i1MpSoKyuPofpbjqEkifUhdd19vVDQr848/edit?usp=sharing
-    df = datasets.load_dataset("LanguageShades/BiasShadesRaw", split="train").to_pandas()
-    # TODO: Check how this columns.csv should be updated.
-    converted_df = convert_dataset("BiasShades_fields - columns.csv", df=df)
-    hub_dataset_tmp = datasets.Dataset.from_pandas(converted_df)
-    # TODO: Break this down by language.
-    hub_dataset = datasets.DatasetDict({"test": hub_dataset_tmp})
-    from huggingface_hub import HfApi, HfFolder
-
-    # Replace 'your-username' with your Hugging Face username
-    dataset_name = "LanguageShades/FormattedBiasShades"
-
-    # Push the dataset to the hub
-    hub_dataset.push_to_hub(dataset_name)
+    main()
