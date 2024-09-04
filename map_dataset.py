@@ -146,18 +146,18 @@ def convert_dataset(col_map_path, df):
     return df
 
 
-if __name__ == "__main__":
-    # file is https://docs.google.com/spreadsheets/d/1dyEYmsGW3i1MpSoKyuPofpbjqEkifUhdd19vVDQr848/edit?usp=sharing
-
-    df = datasets.load_dataset("LanguageShades/BiasShades", split="train").to_pandas()
-
-    df = convert_dataset("BiasShades_fields - columns.csv", df=df)
+def main(
+    formatted_dataset_upload_path="LanguageShades/FormattedBiasShadestest",
+    raw_dataset_path="LanguageShades/BiasShades",
+    col_map_path="BiasShades_fields - columns.csv",
+):
+    df = datasets.load_dataset(raw_dataset_path, split="train").to_pandas()
+    df = convert_dataset(col_map_path, df=df)
     df = datasets.Dataset.from_pandas(df)
     df = datasets.DatasetDict({"test": df})
-    from huggingface_hub import HfApi, HfFolder
+    df.push_to_hub(formatted_dataset_upload_path)
 
-    # Replace 'your-username' with your Hugging Face username
-    dataset_name = "LanguageShades/FormattedBiasShades"
 
-    # Push the dataset to the hub
-    df.push_to_hub(dataset_name)
+if __name__ == "__main__":
+    # mapping file is https://docs.google.com/spreadsheets/d/1dyEYmsGW3i1MpSoKyuPofpbjqEkifUhdd19vVDQr848/edit?usp=sharing
+    main()
