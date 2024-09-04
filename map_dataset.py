@@ -4,6 +4,10 @@ import datasets
 import pandas as pd
 sys.path.append(".")
 from config import Config
+import logging
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
 NO_TEMPLATES = ['ar', 'zh', 'zh_hant']
 
@@ -83,14 +87,14 @@ class CleanDataset:
         for col in df.columns:
 
             stats[col] = df[col].value_counts()
-            print(f"Column: {col}")
-            print(stats[col])
-            print("Unique Values", len(stats[col]))
+            logger.info(f"Column: {col}")
+            logger.info(stats[col])
+            logger.info("Unique Values", len(stats[col]))
             null_pc = (len(df[df[col].isnull()]) / len(df)) * 100
-            print("Null %:", null_pc)
+            logger.info("Null %:", null_pc)
             if null_pc != 100 and isinstance(stats[col].index[0], list):
                 unique_values = self.get_unique_list_values(stats[col])
-                print("Unique Values", unique_values)
+                logger.info("Unique Values", unique_values)
 
     @staticmethod
     def try_strip(x):
@@ -100,7 +104,7 @@ class CleanDataset:
                 return x.strip()
         except Exception as e:
             # Just return the original value if there's an error
-            print(f"Error processing: {x}, Error: {e}")
+            logger.warning(f"Error processing: {x}, Error: {e}")
         return x
 
 
@@ -125,19 +129,17 @@ def convert_dataset(col_map_path, df):
     df = df.loc[:, ~df.columns.str.contains("^Unnamed")]
     df.reset_index(drop=True, inplace=True)
 
-    # Normalize how the bias_type column values appear
+    # Format bias_type column as lists
     df["bias_type"] = df["bias_type"].apply(cleaner.convert_to_list)
+    logger.info(df.columns)
 
-    # Copy the bias_type and template values from the _original to the contrasts.
-    # If there isn't a contrast, print the issue & continue.
+    # Fill out all bias_type and template cells possible.
     indices = df['index'].unique()
     lang_codes = Config.language_codes.values()
-    # Most statements have a single contrast marked 'a'. Some have more.
-    # This allows for a lot more, if they are there.
-    contrast_letters = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p']
     for index in indices:
-        df = copy_original_content_to_contrasts(df, index, lang_codes, contrast_letters)
+        df = copy_original_content_to_contrasts(df, index, lang_codes)
 
+    # Do more basic formatting.
     df["stereotype_origin_langs"] = df["stereotype_origin_langs"].apply(
         cleaner.convert_to_list
     )
@@ -148,47 +150,53 @@ def convert_dataset(col_map_path, df):
         cleaner.convert_to_list
     )
 
-    # df['stereotype_origin_langs'] = df['stereotype_origin_langs'].apply(map_to_iso_language_codes)
-    # df['stereotype_valid_langs'] = df['stereotype_valid_langs'].apply(map_to_iso_language_codes)
     df["stereotype_valid_regions"] = df["stereotype_valid_regions"].apply(
         cleaner.map_to_iso_country_codes
     )
     for col in df.columns:
+        # TODO: We can remove "perceived" now I think.
         if "perceived" in col or "expression" in col:
             df[col] = df[col].apply(cleaner.map_to_bool)
     df.reset_index(drop=True, inplace=True)
-    cleaner.get_col_stats(
-        df
-    )  # Print Null stats, #todo unique categorical values (some need to be manually mapped)
+    #cleaner.get_col_stats(
+    #    df
+    #)  # Print Null stats, #todo unique categorical values (some need to be manually mapped)
     return df
 
 
-def copy_original_content_to_contrasts(df, index, lang_codes, contrast_letters):
+def copy_original_content_to_contrasts(df, index, lang_codes):
     """Copies content from the _original statement to the contrasts:
     bias_type and templates. Moves on when something is missing."""
-    # TODO: Check if the letter is there first, only run if so.
-    for letter in contrast_letters:
-        try:
-            original_bias_type = df.loc[(df['index'] == index) & (df['subset'] == '_original'), "bias_type"].values
+    df_mini = df[df['index'] == index]
+    subset_ids = list(df_mini.loc[df_mini['subset'] != "_original"]['subset'])
+    for letter_idx in range(len(subset_ids)):
+        letter = subset_ids[letter_idx]
+        # If the bias_type isn't there, fill it in.
+        # Note that we don't even have to check this, since they need to
+        # all be the same anyway.
+        next_bias_type_cell = df_mini.loc[df_mini['subset'] == letter]["bias_type"]
+        if next_bias_type_cell.empty:
+            original_bias_type = df_mini[df_mini['subset'] == '_original']["bias_type"].values
             df.loc[(df['index'] == index) & (df['subset'] == letter), "bias_type"] = original_bias_type
-        except ValueError:
-            if letter == 'a':
-                print("Missing contrast pairing for %.1f" % index)
-            pass # This can probably just return, as the next statement would also fail.
-        # Copy the template from the _original to the contrasts, for each language.
-        # If the _original template isn't there, move on.
-        for lang in lang_codes:
-            if lang not in NO_TEMPLATES:
-                try:
-                    original_template = df.loc[(df['index'] == index) & (df['subset'] == '_original'), lang + "_templates"].values
-                    # TODO: Do this ONLY if a template is not already there.
-                    # If it is, assert that it is what is expected from the _original_template.
-                    df.loc[(df['index'] == index) & (df['subset'] == letter), lang + "_templates"] = original_template
-                except Exception as e:
-                    print("Missing template for language %s, index %.1f" % (lang, index))
-                    print("Error:")
-                    print(e)
-                    pass
+    # Copy the template from the last-completed one to the blank cells below it.
+    for lang in lang_codes:
+        if lang not in NO_TEMPLATES:
+            # Assumes this is never empty.
+            prev_template = df_mini.loc[df_mini['subset'] == '_original'][lang + "_templates"]
+            if prev_template.empty:
+                logger.warning("ISSUE: No original template for language %s, index %.1f," % (lang, index))
+                continue
+            for letter_idx in range(len(subset_ids)):
+                letter = subset_ids[letter_idx]
+                next_template = df_mini[df_mini['subset'] == letter][lang + "_templates"]
+                if not next_template.any():
+                    try:
+                        df.loc[(df['index'] == index) & (df['subset'] == letter), lang + "_templates"] = prev_template.values
+                    except:
+                        logger.warning("Issue with indexing for %.1f, %s" % (index, letter))
+                else:
+                    prev_template = next_template
+            # logger.info(df[(df['index'] == index)][lang + "_templates"])
     return df
 
 def main(
