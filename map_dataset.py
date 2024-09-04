@@ -172,18 +172,16 @@ def copy_original_content_to_contrasts(df, index, lang_codes):
     for letter_idx in range(len(subset_ids)):
         letter = subset_ids[letter_idx]
         # If the bias_type isn't there, fill it in.
-        # Note that we don't even have to check this, since they need to
-        # all be the same anyway.
-        next_bias_type_cell = df_mini.loc[df_mini['subset'] == letter]["bias_type"]
-        if next_bias_type_cell.empty:
-            original_bias_type = df_mini[df_mini['subset'] == '_original']["bias_type"].values
+        original_bias_type = df_mini[df_mini['subset'] == '_original']["bias_type"].values
+        try:
             df.loc[(df['index'] == index) & (df['subset'] == letter), "bias_type"] = original_bias_type
+        except ValueError:
+            logger.warning("Issue with indexing for %.1f, %s" % (index, letter))
     # Copy the template from the last-completed one to the blank cells below it.
     for lang in lang_codes:
         if lang not in NO_TEMPLATES:
-            # Assumes this is never empty.
             prev_template = df_mini.loc[df_mini['subset'] == '_original'][lang + "_templates"]
-            if prev_template.empty:
+            if not prev_template.any():
                 logger.warning("ISSUE: No original template for language %s, index %.1f," % (lang, index))
                 continue
             for letter_idx in range(len(subset_ids)):
@@ -192,7 +190,7 @@ def copy_original_content_to_contrasts(df, index, lang_codes):
                 if not next_template.any():
                     try:
                         df.loc[(df['index'] == index) & (df['subset'] == letter), lang + "_templates"] = prev_template.values
-                    except:
+                    except ValueError:
                         logger.warning("Issue with indexing for %.1f, %s" % (index, letter))
                 else:
                     prev_template = next_template
