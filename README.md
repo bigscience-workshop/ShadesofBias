@@ -2,6 +2,12 @@
 This repository provides scripts and code use in the [Shades of Bias in Text Dataset](https://huggingface.co/datasets/LanguageShades/BiasShades).
 It includes code for processing the data, and for evaluation to measure bias in Language Models across languages.
 
+## Data Processing
+
+**process_dataset/map_dataset.py** takes https://huggingface.co/datasets/LanguageShades/BiasShadesRaw and normalizes/formats to produce https://huggingface.co/datasets/LanguageShades/BiasShadesRaw
+
+**process_dataset/extract_vocabulary.py** takes https://huggingface.co/datasets/LanguageShades/BiasShadesRaw and aligns each statement to its corresponding template slots, printing out results -- and how well the alignment worked -- in https://huggingface.co/datasets/LanguageShades/LanguageCorrections
+
 ## Evaluation
 
 ### HF Endpoints
