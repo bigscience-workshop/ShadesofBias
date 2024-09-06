@@ -5,7 +5,7 @@
 3,58.1,Original Language of the Stereotype,stereotype_origin_langs,List[Str],List of ISO language codes
 4,63.1,Language Validity (In which languages is this stereotype valid?),stereotype_valid_langs,List[Str],List of ISO language codes
 5,57.7,Region Validity (In which regions is this stereotype valid?),stereotype_valid_regions,List[Str],List of ISO country codes
-6,58.3,Stereotyped Group,stereotyped_group,Str,categorical
+6,58.3,Stereotyped Entity,stereotyped_entity,Str,categorical
 7,58,English: Templates,en_templates,Str,
 8,5.4,English: Biased Sentences,en_biased_sentences,Str,
 9,0,English: Is this a saying?,en_expression,Bool
