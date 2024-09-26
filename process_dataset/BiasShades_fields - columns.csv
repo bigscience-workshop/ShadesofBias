@@ -6,6 +6,7 @@
 4,63.1,Language Validity (In which languages is this stereotype valid?),stereotype_valid_langs,List[Str],List of ISO language codes
 5,57.7,Region Validity (In which regions is this stereotype valid?),stereotype_valid_regions,List[Str],List of ISO country codes
 6,58.3,Stereotyped Entity,stereotyped_entity,Str,categorical
+,,Type,type,Str,categorical
 7,58,English: Templates,en_templates,Str,
 8,5.4,English: Biased Sentences,en_biased_sentences,Str,
 9,0,English: Is this a saying?,en_expression,Bool
@@ -32,8 +33,8 @@
 29,97.9,Chinese: Comments,zh_comments,Str,
 30,100,Traditional Chinese: Templates,zh_hant_templates,Str,
 31,56,Traditional Chinese: Biased Sentences,zh_hant_biased_sentences,Str,
-32,59.6,Traditional Chinese: Is this a saying?,zh_hk_expression,Bool,
-33,97.6,Traditional Chinese: Comments,zh_hk_comments,Str,
+32,59.6,Traditional Chinese: Is this a saying?,zh_hant_expression,Bool,
+33,97.6,Traditional Chinese: Comments,zh_hant_comments,Str,
 34,84.7,Dutch: Templates,nl_templates,Str,
 35,77,Dutch: Biased Sentences,nl_biased_sentences,Str,
 36,98.2,Dutch: Is this a saying?,nl_expression,Bool,
@@ -45,6 +46,7 @@
 42,89.5,Marathi: Templates,mr_templates,Str,
 43,89.2,Marathi: Biased Sentences,mr_biased_sentences,Str,
 44,100,Marathi: Is this a saying?,mr_expression,Bool,
+,,Marathi: Comments,mr_comments,Str,
 45,54.2,Russian: Templates,ru_templates,Str,
 46,10.2,Russian: Biased Sentences,ru_biased_sentences,Str,
 47,84.1,Russian: Comments,ru_comments,Str,

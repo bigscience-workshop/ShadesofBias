@@ -1,5 +1,7 @@
-import re
+import os
 import sys
+
+import re
 import datasets
 import pandas as pd
 sys.path.append(".")
@@ -10,6 +12,10 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
 NO_TEMPLATES = ['ar', 'zh', 'zh_hant']
+LANG_CODES = Config.language_codes.values()
+# Where to put the output csv files.
+CSV_DIR = '/Users/margaretmitchell/HuggingFace/git/Shades/FormattedBiasShades/by_language/'
+ALL_CSV_PATH = '/Users/margaretmitchell/HuggingFace/git/Shades/FormattedBiasShades/all/all.csv'
 
 class CleanDataset:
 
@@ -69,7 +75,7 @@ class CleanDataset:
         try:
             y = x.strip().lower()
             if y == "yes" or y == "y" or y == "yes." or y == "true":
-                return "True"
+                return True
             elif (
                 y == "no"
                 or y == "n"
@@ -77,10 +83,13 @@ class CleanDataset:
                 or y.startswith("no")
                 or x == "false"
             ):
-                return "False"
+                return False
+            print("Don't know how to handle this one for the expression:")
+            print(x)
+            sys.exit()
             return x
         except:
-            return x
+            return False
 
     def get_col_stats(self, df):
         stats = {}
@@ -135,9 +144,8 @@ def convert_dataset(col_map_path, df):
 
     # Fill out all bias_type and template cells possible.
     indices = df['index'].unique()
-    lang_codes = Config.language_codes.values()
     for index in indices:
-        df = copy_original_content_to_contrasts(df, index, lang_codes)
+        df = copy_original_content_to_contrasts(df, index)
 
     # Do more basic formatting.
     df["stereotype_origin_langs"] = df["stereotype_origin_langs"].apply(
@@ -156,6 +164,7 @@ def convert_dataset(col_map_path, df):
     for col in df.columns:
         # TODO: We can remove "perceived" now I think.
         if "perceived" in col or "expression" in col:
+            print("DOING THIS")
             df[col] = df[col].apply(cleaner.map_to_bool)
     df.reset_index(drop=True, inplace=True)
     #cleaner.get_col_stats(
@@ -164,9 +173,10 @@ def convert_dataset(col_map_path, df):
     return df
 
 
-def copy_original_content_to_contrasts(df, index, lang_codes):
+def copy_original_content_to_contrasts(df, index):
     """Copies content from the _original statement to the contrasts:
     bias_type and templates. Moves on when something is missing."""
+    print(index)
     df_mini = df[df['index'] == index]
     subset_ids = list(df_mini.loc[df_mini['subset'] != "_original"]['subset'])
     for letter_idx in range(len(subset_ids)):
@@ -176,13 +186,13 @@ def copy_original_content_to_contrasts(df, index, lang_codes):
         try:
             df.loc[(df['index'] == index) & (df['subset'] == letter), "bias_type"] = original_bias_type
         except ValueError:
-            logger.warning("Issue with indexing for %.1f, %s" % (index, letter))
+            logger.warning("Issue with indexing for %s, %s" % (index, letter))
     # Copy the template from the last-completed one to the blank cells below it.
-    for lang in lang_codes:
+    for lang in LANG_CODES:
         if lang not in NO_TEMPLATES:
             prev_template = df_mini.loc[df_mini['subset'] == '_original'][lang + "_templates"]
             if not prev_template.any():
-                logger.warning("ISSUE: No original template for language %s, index %.1f," % (lang, index))
+                logger.warning("ISSUE: No original template for language %s, index %s," % (lang, index))
                 continue
             for letter_idx in range(len(subset_ids)):
                 letter = subset_ids[letter_idx]
@@ -194,22 +204,37 @@ def copy_original_content_to_contrasts(df, index, lang_codes):
                         logger.warning("Issue with indexing for %.1f, %s" % (index, letter))
                 else:
                     prev_template = next_template
-            # logger.info(df[(df['index'] == index)][lang + "_templates"])
     return df
 
 def main(
     formatted_dataset_upload_path="LanguageShades/FormattedBiasShades",
     raw_dataset_path="LanguageShades/BiasShadesRaw",
-    col_map_path="BiasShades_fields - columns.csv",
+    col_map_fid="BiasShades_fields - columns.csv",
 ):
+    # col_map_path assumed to be in the same directory as the current file.
+    col_map_path = os.path.dirname(os.path.realpath(__file__)) + "/" + col_map_fid
     # file is https://docs.google.com/spreadsheets/d/1dyEYmsGW3i1MpSoKyuPofpbjqEkifUhdd19vVDQr848/edit?usp=sharing
     df = datasets.load_dataset(raw_dataset_path, split="train").to_pandas()
     # TODO: Check how this columns.csv should be updated.
     df = convert_dataset(col_map_path, df=df)
-    dataset_dict_test = datasets.Dataset.from_pandas(df)
-    # TODO: Break this down by language.
-    dataset_dict = datasets.DatasetDict({"test": dataset_dict_test})
-    dataset_dict.push_to_hub(formatted_dataset_upload_path)
+    df.to_csv(ALL_CSV_PATH, index=False)
+    # TODO: Changing to dataset_dict doesn't even need to happen anymore.
+    dataset_dict = datasets.Dataset.from_pandas(df)
+    basic_cols = ['index', 'subset', 'bias_type', 'stereotype_origin_langs',
+                  'stereotype_valid_langs', 'stereotype_valid_regions',
+                  'stereotyped_entity', 'type']
+    #dataset_dict_test = {} #dataset_dict.select_columns(basic_cols)}
+    for lang in LANG_CODES:
+        #if lang not in NO_TEMPLATES:
+        #    lang_cols += [lang + "_templates"]
+        lang_cols = basic_cols + [lang + "_biased_sentences", lang + "_expression", lang + "_comments"]
+        #dataset_dict_test[lang] = dataset_dict.select_columns(lang_cols)
+        print("LANGUAGE IS %s" % lang)
+        print("COLUMNS ARE")
+        print(lang_cols)
+        pd.DataFrame(dataset_dict.select_columns(lang_cols)).to_csv(CSV_DIR + lang + '.csv', index=False)
+    #dataset_dict_test_hub = datasets.Dataset.from_dict(dataset_dict_test)
+    #dataset_dict_test_hub.push_to_hub(formatted_dataset_upload_path)
 
 
 if __name__ == "__main__":

@@ -1,11 +1,14 @@
 # -*- coding: utf-8 -*-
-
+import os
+import sys
 import re
 from collections import defaultdict
 
 import datasets
 from dotenv import load_dotenv
 
+dir_path = os.path.dirname(os.path.realpath(__file__))
+sys.path.append(dir_path + "/..")
 import config
 
 load_dotenv()
@@ -13,7 +16,6 @@ from tqdm import tqdm
 
 from utils import get_set
 from collections import Counter
-
 config = config.Config()
 
 # TODO: Fix the fact that LKW-Fahrerin and LKW-Fahrer really oughtn't be
@@ -273,7 +275,7 @@ for language in config.languages:
                 "Region Validity (In which regions is this stereotype valid?)"
             ]
         )
-        stereotyped_group = stereotype_dct["Stereotyped Group"]
+        stereotyped_group = stereotype_dct["Stereotyped Entity"]
         biased_sentence = stereotype_dct[language + ": Biased Sentences"]
         # Templates repeat in numerical order; this fills-in-blanks
         if stereotype_dct[language + ": Templates"] != "":
