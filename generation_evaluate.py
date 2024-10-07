@@ -1,7 +1,6 @@
 import json
 import os
 import sys
-import pdb
 
 from datasets import load_dataset
 from dotenv import load_dotenv
@@ -24,7 +23,7 @@ from utils import (
 
 def main(
     model_name,
-    max_new_tokens=5,
+    max_new_tokens=20,
     repetition_penalty=1.0,
     dataset_revision=None,
     api_url=None,
@@ -32,7 +31,8 @@ def main(
 ):
     config = Config()
     logger.info("Loading dataset")
-    data = load_dataset(config.prompts_dataset)["train"]
+    data = load_dataset(config.prompts_dataset, revision=dataset_revision)["test"]
+    #data = data.shuffle(seed=42).select(range(10))
     logger.info(f"Inference API for Model {model_name}")
     if api_url is None:
         api_url = load_endpoint_url(model_name)
@@ -46,15 +46,17 @@ def main(
     )
     logger.info("Starting inference")
 
+    suffix = ''
+
     preds = dict()
     preds_raw = dict()
     for language in config.languages:
         preds[f"pred_label{language}"] = [-1] * len(data)
-        preds_raw[f"pred_{language}"] = [""] * len(data)
+        preds_raw[f"pred_{language}"] = ['null'] * len(data)
 
     def update_with_labels(example):
-        if example["Index"] is not None:
-            if example["Subset"] == '_original' or example["Subset"] is None:
+        if example["index"] is not None:
+            if example["subset"] == '_original' or example["subset"] is None:
                 example["gold"] = 1
             else:
                 # If it's a contrastive instance, then it is
@@ -69,32 +71,29 @@ def main(
 
     for i, stereotype_dct in enumerate(tqdm(data)):
         logger.info(stereotype_dct)
-        id = stereotype_dct["Index"]
-        bias_type = stereotype_dct["Bias Type"]
-        orig_languages = get_set(stereotype_dct["Original Language of the Stereotype"])
+        id = stereotype_dct["index"]
+        bias_type = stereotype_dct["bias_type"]
+        orig_languages = get_set(stereotype_dct["stereotype_origin_langs"])
         lang_validity = get_set(
             stereotype_dct[
-                "Language Validity (In which languages is this stereotype valid?)"
+                "stereotype_valid_langs"
             ]
         )
         region_validity = get_set(
             stereotype_dct[
-                "Region Validity (In which regions is this stereotype valid?)"
+                "stereotype_valid_regions"
             ]
         )
-        stereotyped_group = stereotype_dct["Stereotyped Group"]
+        stereotyped_group = stereotype_dct["stereotyped_entity"]
         for language in config.languages:
             try:
-                biased_sentence = stereotype_dct[language + ": Biased Sentences"]
+                biased_sentence = stereotype_dct[config.language_codes[language] + "_biased_sentences"]
                 if biased_sentence:
                     # Prompt formatting
                     prompt = format_single_prompt(biased_sentence, promptparams, config.language_codes[language])
-                    
                     generated_text, success = model_api.query_model(
                         prompt, pred_method="rawgen"
                     )
-                    #print(prompt)
-                    #print(generated_text[len(prompt) :])
                 else:
                     continue
             except KeyError:
@@ -102,15 +101,16 @@ def main(
                 continue
             # Parse for lables in generated text
             pred_label = helper_parse_for_labels(
-                generated_text[len(prompt) :], promptparams['prompt_name']
+                prompt, generated_text, promptparams['prompt_name']
             )
             logger.info(f"Predicted Label: {pred_label}")
             preds[f"pred_label{language}"][i] = pred_label
-            preds_raw[f"pred_{language}"][i] = generated_text[len(prompt) :]
+            preds_raw[f"pred_{language}"][i] = generated_text
     
 
     for language in config.languages:
         data = data.add_column(f"{language}: Pred label", preds[f"pred_label{language}"])
+        data = data.add_column(f"{language}: Pred output", preds_raw[f"pred_{language}"])
     # Save the final data to preds/
     metrics = {
         "aggregate_acc": accuracy_aggregate(data=data, preds=preds),
@@ -120,39 +120,25 @@ def main(
             metrics[language + "_acc"] = accuracy_by_lang(
                 data, preds=preds[f"pred_label{language}"]
             )
-            # Count the amount of failed predictions
-            metrics[language + "_degenerate_rate"] = preds[f"pred_label{language}"].count(-1) / len(preds[f"pred_label{language}"])
         except:
             logger.error(f"No pred for {language}")
     
     model_to_save = model_name.split('/')[1]
-    with open(f"preds/metrics_{model_to_save}{promptparams['prompt_name']}.json", "w") as outfile:
+    with open(f"preds/metrics_{suffix}{model_to_save}{promptparams['prompt_name']}.json", "w+") as outfile:
         json.dump(metrics, outfile)
+
+    with open(f"preds/gen_predictions/{suffix}{model_to_save}{promptparams['prompt_name']}.json", "w") as outfile:
+        json.dump(preds, outfile)
+    with open(f"preds/gen_predictions/raw_predictions_{suffix}{model_to_save}{promptparams['prompt_name']}.json", "w") as outfile:
+        json.dump(preds, outfile)
     
-    with open(f"preds/gen_predictions/{model_to_save}{promptparams['prompt_name']}.json", "w") as outfile:
-        json.dump(preds, outfile)
-    with open(f"preds/gen_predictions/raw_predictions_{model_to_save}{promptparams['prompt_name']}.json", "w") as outfile:
-        json.dump(preds, outfile)
+    data.save_to_disk(f"preds/pred_generate_{suffix}{model_to_save}{promptparams['prompt_name']}")
 
 
 if __name__ == "__main__":
     main(
-        model_name="bigscience/bloomz-7b1",
-        api_url="https://ywckqfxbxcetceeq.us-east-1.aws.endpoints.huggingface.cloud",
-        dataset_revision="d59ff37",
-        promptparams={"prompt_name": "final_prompt3"},
+        model_name="Qwen/Qwen2-7B-Instruct",
+        api_url="https://rnc2dsweb7fdjlpy.us-east-1.aws.endpoints.huggingface.cloud",
+        dataset_revision="000d61d",
+        promptparams={"prompt_name": "final_prompt2"},
     )
-
-    # main(
-    #     model_name="Qwen/Qwen2-7B-Instruct",
-    #     api_url="https://n2qg2ivyffdecg83.us-east-1.aws.endpoints.huggingface.cloud",
-    #     dataset_revision="d59ff37",
-    #     promptparams={"prompt_name": "final_prompt3"},
-    # )
-
-    # main(
-    #     model_name="mistralai/Mistral-7B-Instruct-v0.3",
-    #     api_url="https://jv59brny0fllpy4w.us-east-1.aws.endpoints.huggingface.cloud",
-    #     dataset_revision="d59ff37",
-    #     promptparams={"prompt_name": "final_prompt3"},
-    # )

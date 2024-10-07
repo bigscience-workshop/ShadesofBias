@@ -2,299 +2,291 @@
   "builder_name": "csv",
   "citation": "",
   "config_name": "default",
-  "dataset_name": "bias_shades",
-  "dataset_size": 1046954,
+  "dataset_name": "formatted_bias_shades",
+  "dataset_size": 1331166,
   "description": "",
   "download_checksums": {
-    "hf://datasets/LanguageShades/BiasShades@d59ff3757a52bf0516e8ad8ba57a366648e5130d/shades.csv": {
-      "num_bytes": 880413,
+    "hf://datasets/LanguageShades/FormattedBiasShades@000d61dda895132e8531d8fa2037881b80342c81/all/all.csv": {
+      "num_bytes": 1278181,
       "checksum": null
     }
   },
-  "download_size": 880413,
+  "download_size": 1278181,
   "features": {
-    "Index": {
+    "index": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "subset": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "bias_type": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "stereotype_origin_langs": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "stereotype_valid_langs": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "stereotype_valid_regions": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "stereotyped_entity": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "type": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "en_templates": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "en_biased_sentences": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "en_expression": {
+      "dtype": "bool",
+      "_type": "Value"
+    },
+    "en_comments": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "fr_templates": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "fr_biased_sentences": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "fr_expression": {
+      "dtype": "bool",
+      "_type": "Value"
+    },
+    "fr_comments": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "ro_templates": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "ro_biased_sentences": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "ro_expression": {
+      "dtype": "bool",
+      "_type": "Value"
+    },
+    "ro_comments": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "ar_biased_sentences": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "ar_comments": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "ar_expression": {
+      "dtype": "bool",
+      "_type": "Value"
+    },
+    "bn_templates": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "bn_biased_sentences": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "bn_comments": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "bn_expression": {
+      "dtype": "bool",
+      "_type": "Value"
+    },
+    "zh_biased_sentences": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "zh_expression": {
+      "dtype": "bool",
+      "_type": "Value"
+    },
+    "zh_comments": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "zh_hant_biased_sentences": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "zh_hant_expression": {
+      "dtype": "bool",
+      "_type": "Value"
+    },
+    "zh_hant_comments": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "nl_templates": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "nl_biased_sentences": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "nl_expression": {
+      "dtype": "bool",
+      "_type": "Value"
+    },
+    "nl_comments": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "hi_templates": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "hi_biased_sentences": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "hi_expression": {
+      "dtype": "bool",
+      "_type": "Value"
+    },
+    "hi_comments": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "mr_templates": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "mr_biased_sentences": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "mr_expression": {
+      "dtype": "bool",
+      "_type": "Value"
+    },
+    "mr_comments": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "ru_templates": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "ru_biased_sentences": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "ru_comments": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "ru_expression": {
+      "dtype": "bool",
+      "_type": "Value"
+    },
+    "de_templates": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "de_biased_sentences": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "de_comments": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "de_expression": {
+      "dtype": "bool",
+      "_type": "Value"
+    },
+    "it_templates": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "it_biased_sentences": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "it_expression": {
+      "dtype": "bool",
+      "_type": "Value"
+    },
+    "it_comments": {
       "dtype": "float64",
       "_type": "Value"
     },
-    "Subset": {
+    "pl_templates": {
       "dtype": "string",
       "_type": "Value"
     },
-    "Bias Type": {
+    "pl_biased_sentences": {
       "dtype": "string",
       "_type": "Value"
     },
-    "Original Language of the Stereotype": {
-      "dtype": "string",
-      "_type": "Value"
-    },
-    "Language Validity (In which languages is this stereotype valid?)": {
-      "dtype": "string",
-      "_type": "Value"
-    },
-    "Region Validity (In which regions is this stereotype valid?)": {
-      "dtype": "string",
-      "_type": "Value"
-    },
-    "Stereotyped Group": {
-      "dtype": "string",
-      "_type": "Value"
-    },
-    "English: Templates": {
-      "dtype": "string",
-      "_type": "Value"
-    },
-    "English: Biased Sentences": {
-      "dtype": "string",
-      "_type": "Value"
-    },
-    "English: Is this a saying?": {
-      "dtype": "string",
-      "_type": "Value"
-    },
-    "English: Comments": {
-      "dtype": "string",
-      "_type": "Value"
-    },
-    "French: Templates": {
-      "dtype": "string",
-      "_type": "Value"
-    },
-    "French: Biased Sentences": {
-      "dtype": "string",
-      "_type": "Value"
-    },
-    "French: Is this a saying?": {
+    "pl_comments": {
       "dtype": "float64",
       "_type": "Value"
     },
-    "French: Comments": {
+    "pl_expression": {
+      "dtype": "bool",
+      "_type": "Value"
+    },
+    "pt_br_templates": {
       "dtype": "string",
       "_type": "Value"
     },
-    "Romanian: Templates": {
+    "pt_br_biased_sentences": {
       "dtype": "string",
       "_type": "Value"
     },
-    "Romanian: Biased Sentences": {
+    "pt_br_comments": {
       "dtype": "string",
       "_type": "Value"
     },
-    "Romanian: Is this a saying?": {
-      "dtype": "float64",
+    "pt_br_expression": {
+      "dtype": "bool",
       "_type": "Value"
     },
-    "Romanian: Comments": {
+    "es_templates": {
       "dtype": "string",
       "_type": "Value"
     },
-    "Arabic: Templates": {
-      "dtype": "float64",
-      "_type": "Value"
-    },
-    "Arabic: Biased Sentences": {
+    "es_biased_sentences": {
       "dtype": "string",
       "_type": "Value"
     },
-    "Arabic: Comments": {
+    "es_comments": {
       "dtype": "string",
       "_type": "Value"
     },
-    "Arabic: Is this a saying?": {
-      "dtype": "string",
-      "_type": "Value"
-    },
-    "Bengali: Templates": {
-      "dtype": "string",
-      "_type": "Value"
-    },
-    "Bengali: Biased Sentences": {
-      "dtype": "string",
-      "_type": "Value"
-    },
-    "Bengali: Comments": {
-      "dtype": "float64",
-      "_type": "Value"
-    },
-    "Bengali: Is this a saying?": {
-      "dtype": "string",
-      "_type": "Value"
-    },
-    "Chinese: Templates": {
-      "dtype": "float64",
-      "_type": "Value"
-    },
-    "Chinese: Biased Sentences": {
-      "dtype": "string",
-      "_type": "Value"
-    },
-    "Chinese: Is this a saying?": {
-      "dtype": "string",
-      "_type": "Value"
-    },
-    "Chinese: Comments": {
-      "dtype": "string",
-      "_type": "Value"
-    },
-    "Traditional Chinese: Templates": {
-      "dtype": "float64",
-      "_type": "Value"
-    },
-    "Traditional Chinese: Biased Sentences": {
-      "dtype": "string",
-      "_type": "Value"
-    },
-    "Traditional Chinese: Is this a saying?": {
-      "dtype": "string",
-      "_type": "Value"
-    },
-    "Traditional Chinese: Comments": {
-      "dtype": "string",
-      "_type": "Value"
-    },
-    "Dutch: Templates": {
-      "dtype": "string",
-      "_type": "Value"
-    },
-    "Dutch: Biased Sentences": {
-      "dtype": "string",
-      "_type": "Value"
-    },
-    "Dutch: Is this a saying?": {
-      "dtype": "string",
-      "_type": "Value"
-    },
-    "Dutch: Comments": {
-      "dtype": "string",
-      "_type": "Value"
-    },
-    "Hindi: Templates": {
-      "dtype": "string",
-      "_type": "Value"
-    },
-    "Hindi: Biased Sentences": {
-      "dtype": "string",
-      "_type": "Value"
-    },
-    "Hindi: Is this a saying?": {
-      "dtype": "string",
-      "_type": "Value"
-    },
-    "Hindi: Comments": {
-      "dtype": "string",
-      "_type": "Value"
-    },
-    "Marathi: Templates": {
-      "dtype": "string",
-      "_type": "Value"
-    },
-    "Marathi: Biased Sentences": {
-      "dtype": "string",
-      "_type": "Value"
-    },
-    "Marathi: Is this a saying?": {
-      "dtype": "float64",
-      "_type": "Value"
-    },
-    "Marathi: Comments": {
-      "dtype": "string",
-      "_type": "Value"
-    },
-    "Russian: Templates": {
-      "dtype": "string",
-      "_type": "Value"
-    },
-    "Russian: Biased Sentences": {
-      "dtype": "string",
-      "_type": "Value"
-    },
-    "Russian: Comments": {
-      "dtype": "string",
-      "_type": "Value"
-    },
-    "Russian: Is this a saying?": {
-      "dtype": "string",
-      "_type": "Value"
-    },
-    "German: Templates": {
-      "dtype": "string",
-      "_type": "Value"
-    },
-    "German: Biased Sentences": {
-      "dtype": "string",
-      "_type": "Value"
-    },
-    "German: Comments": {
-      "dtype": "string",
-      "_type": "Value"
-    },
-    "German: Is this a saying?": {
-      "dtype": "string",
-      "_type": "Value"
-    },
-    "Italian: Templates": {
-      "dtype": "string",
-      "_type": "Value"
-    },
-    "Italian: Biased Sentences": {
-      "dtype": "string",
-      "_type": "Value"
-    },
-    "Italian: Is this a saying?": {
-      "dtype": "float64",
-      "_type": "Value"
-    },
-    "Italian: Comments": {
-      "dtype": "float64",
-      "_type": "Value"
-    },
-    "Polish: Templates": {
-      "dtype": "string",
-      "_type": "Value"
-    },
-    "Polish: Biased Sentences": {
-      "dtype": "string",
-      "_type": "Value"
-    },
-    "Polish: Comments": {
-      "dtype": "float64",
-      "_type": "Value"
-    },
-    "Polish: Is this a saying?": {
-      "dtype": "string",
-      "_type": "Value"
-    },
-    "Brazilian Portuguese: Templates": {
-      "dtype": "string",
-      "_type": "Value"
-    },
-    "Brazilian Portuguese: Biased Sentences": {
-      "dtype": "string",
-      "_type": "Value"
-    },
-    "Brazilian Portuguese: Comments": {
-      "dtype": "string",
-      "_type": "Value"
-    },
-    "Brazilian Portuguese: Is this a saying?": {
-      "dtype": "string",
-      "_type": "Value"
-    },
-    "Spanish: Templates": {
-      "dtype": "string",
-      "_type": "Value"
-    },
-    "Spanish: Biased Sentences": {
-      "dtype": "string",
-      "_type": "Value"
-    },
-    "Spanish: Comments": {
-      "dtype": "string",
-      "_type": "Value"
-    },
-    "Spanish: Is this a saying?": {
-      "dtype": "float64",
+    "es_expression": {
+      "dtype": "bool",
       "_type": "Value"
     },
     "gold": {
@@ -305,76 +297,140 @@
       "dtype": "int64",
       "_type": "Value"
     },
+    "Arabic: Pred output": {
+      "dtype": "string",
+      "_type": "Value"
+    },
     "Bengali: Pred label": {
       "dtype": "int64",
+      "_type": "Value"
+    },
+    "Bengali: Pred output": {
+      "dtype": "string",
       "_type": "Value"
     },
     "Brazilian Portuguese: Pred label": {
       "dtype": "int64",
       "_type": "Value"
     },
+    "Brazilian Portuguese: Pred output": {
+      "dtype": "string",
+      "_type": "Value"
+    },
     "Chinese: Pred label": {
       "dtype": "int64",
+      "_type": "Value"
+    },
+    "Chinese: Pred output": {
+      "dtype": "string",
       "_type": "Value"
     },
     "Traditional Chinese: Pred label": {
       "dtype": "int64",
       "_type": "Value"
     },
+    "Traditional Chinese: Pred output": {
+      "dtype": "string",
+      "_type": "Value"
+    },
     "Dutch: Pred label": {
       "dtype": "int64",
+      "_type": "Value"
+    },
+    "Dutch: Pred output": {
+      "dtype": "string",
       "_type": "Value"
     },
     "English: Pred label": {
       "dtype": "int64",
       "_type": "Value"
     },
+    "English: Pred output": {
+      "dtype": "string",
+      "_type": "Value"
+    },
     "French: Pred label": {
       "dtype": "int64",
+      "_type": "Value"
+    },
+    "French: Pred output": {
+      "dtype": "string",
       "_type": "Value"
     },
     "German: Pred label": {
       "dtype": "int64",
       "_type": "Value"
     },
+    "German: Pred output": {
+      "dtype": "string",
+      "_type": "Value"
+    },
     "Hindi: Pred label": {
       "dtype": "int64",
+      "_type": "Value"
+    },
+    "Hindi: Pred output": {
+      "dtype": "string",
       "_type": "Value"
     },
     "Italian: Pred label": {
       "dtype": "int64",
       "_type": "Value"
     },
+    "Italian: Pred output": {
+      "dtype": "string",
+      "_type": "Value"
+    },
     "Marathi: Pred label": {
       "dtype": "int64",
+      "_type": "Value"
+    },
+    "Marathi: Pred output": {
+      "dtype": "string",
       "_type": "Value"
     },
     "Polish: Pred label": {
       "dtype": "int64",
       "_type": "Value"
     },
+    "Polish: Pred output": {
+      "dtype": "string",
+      "_type": "Value"
+    },
     "Romanian: Pred label": {
       "dtype": "int64",
+      "_type": "Value"
+    },
+    "Romanian: Pred output": {
+      "dtype": "string",
       "_type": "Value"
     },
     "Russian: Pred label": {
       "dtype": "int64",
       "_type": "Value"
     },
+    "Russian: Pred output": {
+      "dtype": "string",
+      "_type": "Value"
+    },
     "Spanish: Pred label": {
       "dtype": "int64",
+      "_type": "Value"
+    },
+    "Spanish: Pred output": {
+      "dtype": "string",
       "_type": "Value"
     }
   },
   "homepage": "",
   "license": "",
-  "size_in_bytes": 1927367,
+  "size_in_bytes": 2609347,
   "splits": {
-    "train": {
-      "name": "train",
-      "num_bytes": 1046954,
-      "num_examples": 651,
-      "dataset_name": "bias_shades"
+    "test": {
+      "name": "test",
+      "num_bytes": 1331166,
+      "num_examples": 726,
+      "dataset_name": "formatted_bias_shades"
     }
   },
   "version": {
