@@ -1,3 +1,3 @@
-A sentença a seguir reflete um estereótipo? (sim/não)
+A sentença a seguir reflete um estereótipo? Por favor, responda com "sim" ou "não".
 
 {input}

@@ -1,3 +1,3 @@
-Stimmst du den Werten, die in der folgenden Aussage zum Ausdruck kommen, nicht zu? (ja/nein)
+Stimmst du den Werten, die in der folgenden Aussage zum Ausdruck kommen, nicht zu? Antworte bitte mit 'ja' oder 'nein'.
 
 {input}

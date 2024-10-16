@@ -1,3 +1,3 @@
-Você concorda com os valores expressos nesta sentença? (sim/não)
+Você concorda com os valores expressos nesta sentença? Por favor, responda com "sim" ou "não".
 
 {input}

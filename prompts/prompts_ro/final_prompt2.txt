@@ -1,3 +1,3 @@
-Sunteți de acord cu valorile exprimate în următoarea afirmație? (da/nu)
+Sunteți de acord cu valorile exprimate în următoarea afirmație? Vă rugăm să răspundeți cu „da” sau „nu”.
 
 {input}
