@@ -2,12 +2,12 @@ import os
 import re
 import sys
 import time
+import json
 from datetime import datetime
 from pathlib import Path
 
-import datasets
 import pandas as pd
-from datasets import load_dataset
+from datasets import load_dataset, Dataset, DatasetDict
 from dotenv import load_dotenv
 from loguru import logger
 
@@ -19,16 +19,19 @@ from utils import load_endpoint_url
 load_dotenv()
 config = Config()
 
-PROMPTS_DATASET = config.prompts_dataset_formatted
+PROMPTS_DATASET = "LanguageShades/FormattedBiasShadesWithLogprobsUpdatedMeta"#"LanguageShades/FormattedBiasShadesWithLogprobsUpdated"#"LanguageShades/FormattedBiasShadesWithLogprobs"#config.prompts_dataset_formatted
 ALL_LANGUAGES = config.languages
+DATASET_COLUMNS = config.formatted_dataset_columns
 
 
-def _get_complex_key(column_type, model_name):
+def _get_column_name(model_name, column_type=None):
     """Constructs a string based on the model name and column type.
     This is then used as a dictionary key."""
-    model_name_regexed = re.sub("/", "_", model_name)
-    key = "_".join([column_type, model_name_regexed])
-    return key
+    flat_model_name = re.sub("/", "_", model_name)
+    if column_type:
+        key = "_".join([column_type, flat_model_name])
+        return key
+    return flat_model_name
 
 
 def _try_strip_all_strings(x):
@@ -40,7 +43,52 @@ def _try_strip_all_strings(x):
     return x
 
 
-def compute_model(model_name, data, config, max_new_tokens=1,
+def _save_to_json(df, model_name):
+    output_path = Path(f"results_{str(datetime.now().date())}")
+    output_path.mkdir(exist_ok=True)
+    flat_model_name = _get_column_name(model_name)
+    tmp_file_path = output_path / f"{flat_model_name}.json"
+    df.to_json(tmp_file_path)
+
+
+def _read_from_json(model_name, date_time, data_df):
+    output_path = Path(f"results_{date_time}")
+    flat_model_name = _get_column_name(model_name)
+    tmp_file_path = output_path / f"{flat_model_name}.json"
+    if tmp_file_path.exists():
+        js_dict = json.load(open(tmp_file_path, 'r'))
+        print(js_dict['fr_logprob_Qwen_Qwen2-7B'])
+        model_cols = [key for key in js_dict if flat_model_name in key]
+        print(model_cols)
+        new_data_df = pd.DataFrame(js_dict)
+        #merged_data_df = pd.merge(data_df, new_data_df[DATASET_COLUMNS + model_cols],
+        #                     on=DATASET_COLUMNS, how='left')
+        # The json may have the wrong type values for the cells.
+        new_data_df.loc[new_data_df['index'] == '237/0', 'index'] = 237.0
+        data_df.loc[data_df['index'] == '237/0', 'index'] = 237.0
+        #print(new_data_df[new_data_df['subset'] == '237/0', 'subset'])
+        # This converts to what's expected from the original dataset.
+        #for column in DATASET_COLUMNS:
+        #    if data_df[column].dtype != new_data_df[column].dtype:
+        #            new_data_df[column] = new_data_df[column].astype(data_df[column].dtype)
+        #merged_data_df = pd.merge(data_df, new_data_df[DATASET_COLUMNS + model_cols], on=DATASET_COLUMNS, how='left')#, suffixes=('', '_drop'))
+        #merged_data_df = merged_data_df[[col for col in merged_data_df.columns if not col.endswith('_drop')]]
+        #print(merged_data_df)
+        return new_data_df
+        #return merged_data_df
+    print("Couldn't find tmp file path. Returning dataset unchanged.")
+    return data_df
+
+
+def _loop_model_ping(model_api, success, warmup_endpoint):
+    while not success and warmup_endpoint:
+        logger.info("Warming up endpoint")
+        logprobs, logprobs_answer, success = model_api.query_model("WAKE UP! ",
+            pred_method="logprob")
+        time.sleep(240)
+
+
+def compute_model(model_name, data_df, config, max_new_tokens=1,
                   repetition_penalty=1.0, api_url=None, languages=None,
                   warmup_endpoint=True):
     """Loads the endpoint for the model, prompts it,
@@ -67,94 +115,60 @@ def compute_model(model_name, data, config, max_new_tokens=1,
     _loop_model_ping(model_api, success, warmup_endpoint)
 
     logger.info("Starting inference")
-
     all_rows = []
-    for _, stereotype_dct in data.iterrows():
+    for _, stereotype_dct in data_df.iterrows():
         stereotype_dct = stereotype_dct.to_dict()
-        logger.info(stereotype_dct)
-
+        try:
+            del stereotype_dct['__index_level_0__']
+        except KeyError:
+            pass
+        #logger.info(stereotype_dct)
         for language in languages:
+            print(language)
             language_code = config.language_codes[language]
-            try:
-                biased_sentence = stereotype_dct[
-                    language_code + "_biased_sentences"]
-                biased_template = stereotype_dct[language_code + "_templates"]
-                if biased_sentence:
-                    logprobs, logprobs_answer, success = model_api.query_model(
-                        biased_sentence, pred_method="logprob")
-                    logger.debug(logprobs)
-                else:
-                    continue
-            except Exception as e:
-                print(e)
-                sys.stderr.write("Fix %s\n" % language)
-                continue
-            # Temporary filter to address None values
-            logprob = [x["logprob"] for x in logprobs if
-                       x["logprob"] is not None]
-            logger.debug(logprob)
-            total_logprob = sum(logprob)
-            ppl = perplexity(logprob)
-            logger.info("Summed logprob %.2f" % total_logprob)
+            tokens_key = language_code + "_" +  _get_column_name(model_name, "tokens")
+            logprob_key = language_code + "_" + _get_column_name(model_name, "logprob")
+            ppl_key = language_code + "_" + _get_column_name(model_name, "ppl")
+            if logprob_key not in stereotype_dct or stereotype_dct[logprob_key] is None or not stereotype_dct[logprob_key].any():
+                if language_code + "_biased_sentences" in stereotype_dct:
+                    biased_sentence = stereotype_dct[language_code + "_biased_sentences"]
+                    if biased_sentence:
+                        print("Did NOT find results for:")
+                        print(
+                            stereotype_dct[language_code + "_biased_sentences"])
 
-            tokens = [x["text"] for x in logprobs]
-            tokens_key = _get_complex_key("tokens", model_name)
-            logprob_key = _get_complex_key("logprob", model_name)
-            ppl_key = _get_complex_key("ppl", model_name)
-            stereotype_dct.update({language_code + "_" + logprob_key: logprob,
-                language_code + "_" + tokens_key: tokens,
-                language_code + "_" + ppl_key: ppl})
+                        logprobs, logprobs_answer, success = model_api.query_model(
+                            biased_sentence, pred_method="logprob")
+                        logger.debug(logprobs)
+                        # Quick filter to address None values
+                        logprob = [x["logprob"] for x in logprobs if x["logprob"] is not None]
+                        #logger.debug(logprob)
+                        total_logprob = sum(logprob)
+                        ppl = perplexity(logprob)
+                        #logger.info("Summed logprob %.2f" % total_logprob)
+                        tokens = [x["text"] for x in logprobs]
+                        stereotype_dct.update({logprob_key: logprob, tokens_key: tokens, ppl_key: ppl})
+            else:
+                print("Found reults for:")
+                print(stereotype_dct[language_code + "_biased_sentences"])
         all_rows.append(stereotype_dct)
     df = pd.DataFrame(all_rows)
     _save_to_json(df, model_name)
     return df
 
-
-def _save_to_json(df, model_name):
-    output_path = Path(f"results_{str(datetime.now().date())}")
-    output_path.mkdir(exist_ok=True)
-    tmp_file_path = output_path / f"{model_name.replace('/', '_')}.json"
-    df.to_json(tmp_file_path)
-
-
-def _read_from_json(model_name, date_time):
-    output_path = Path(f"results_{date_time}")
-    tmp_file_path = output_path / f"{model_name.replace('/', '_')}.json"
-    if tmp_file_path.exists():
-        df = pd.read_json(tmp_file_path)
-        return df
-    return False
-
-
-def _loop_model_ping(model_api, success, warmup_endpoint):
-    while not success and warmup_endpoint:
-        logger.info("Warming up endpoint")
-        logprobs, logprobs_answer, success = model_api.query_model("WAKE UP! ",
-            pred_method="logprob")
-        time.sleep(300)
-
-
 def run_all_models(config, languages, model_list=None):
     if model_list is None:
         model_list = config.base_model_list
     dataset_name = PROMPTS_DATASET
-    data = load_dataset(dataset_name)["test"].to_pandas()
+    data_df = load_dataset(dataset_name)["test"].to_pandas()
     # Strip whitespace, just in case.
     # (Whitespace will affect tokenization, so best to strip before API calls.)
-    data = data.applymap(_try_strip_all_strings)
+    data_df = data_df.applymap(_try_strip_all_strings)
     # For each model
     for model in model_list:
-        try:
-            # For when it's the 'list' is actually a dict
-            cached_data = model_list[model]
-        except:
-            cached_data = None
-        if cached_data is not None:
-            data = _read_from_json(model, cached_data)
-        else:
-            data = compute_model(model_name=model, data=data, config=config,
-                languages=languages)
-    return data
+        data_df = compute_model(model_name=model, data_df=data_df,
+                                config=config, languages=languages)
+    return data_df
 
 
 if __name__ == "__main__":
@@ -162,15 +176,23 @@ if __name__ == "__main__":
     # languages = ["English", "French"]
     languages = config.languages
     # What models are we evaluating?
-    model_dict = {"Qwen/Qwen2-7B": '2024-10-09',
-                  "meta-llama/Meta-Llama-3-8B": '2024-10-10',
-                  "bigscience/bloom-7b1": None}
+    # If you don't have the corresponding cached results files listed below,
+    # (2024-10-09 etc.), you'll need to recompute.
+    # Just make model_dict a list of models,
+    # or else set the values in the dict to None.
+    #model_dict = {#"Qwen/Qwen2-1.5B": "2024-10-13",
+    #              "Qwen/Qwen2-7B": "2024-10-08",}
+    #              #"meta-llama/Meta-Llama-3-8B": "2024-10-13",
+    #              #"bigscience/bloom-7b1": "2024-10-13",
+    #              #"Qwen/Qwen2-72B": "2024-10-13"}
+    model_list = ["bigscience/bloom-7b1","bigscience/bloom-1b7", "mistralai/Mistral-7B-v0.1"]#["meta-llama/Meta-Llama-3-70B", "meta-llama/Meta-Llama-3-8B"] #["Qwen/Qwen2-1.5B","Qwen/Qwen2-7B","Qwen/Qwen2-72B",]#["bigscience/bloom-7b1"] #["meta-llama/Meta-Llama-3-70B"]
     # Where should we write the results to?
-    output_hub_dataset_name = "LanguageShades/FormattedBiasShadesWithLogprobs"
+    output_hub_dataset_name = "LanguageShades/FormattedBiasShadesWithLogprobsUpdatedBloomMistral"
     # Call the model endpoints with the prompts in the given languages;
     # sum the logprob and return a new dataset with this information.
-    df = run_all_models(config=config, languages=languages,
-        model_list=model_dict, )
-    hub_dataset = datasets.Dataset.from_pandas(df)
-    hub_dataset_dict = datasets.DatasetDict({"test": hub_dataset})
+    df = run_all_models(config=config, languages=languages, model_list=model_list)
+    print(df)
+    print("Done")
+    hub_dataset = Dataset.from_pandas(df)
+    hub_dataset_dict = DatasetDict({"test": hub_dataset})
     hub_dataset_dict.push_to_hub(output_hub_dataset_name)

@@ -8,7 +8,7 @@ import pickle
 from config import Config
 config = Config()
 
-identity_tuples = [("males", "females")]
+identity_tuples = [("males", "females")]#, ("adults", "children")]
 global bias_scores
 
 bias_scores = {}
@@ -209,7 +209,7 @@ def generate_bias_boxplot(bias_df, identity=None):
     fid = 'log_likelihood_results/' + '_'.join(title.lower().split())
     with open(fid + '.pickle', 'wb') as f:
         pickle.dump(bias_df, f)
-    fig = px.box(bias_df, x='language', y='bias', color='model', points="all", facet_col='stereotyped_entity', facet_row='model_family',
+    fig = px.box(bias_df, x='language', y='bias', color='model', points="all", facet_col='stereotyped_entity', #facet_row='model_family',
                  labels={"bias": "Bias Score", "language": "Language", "model": "Model"},
                  hover_data=["original_stereotype"],
                  title=title)
@@ -220,11 +220,11 @@ def generate_bias_boxplot(bias_df, identity=None):
     #)
     fig.update_layout(legend=dict(
         yanchor="top",
-        y=0.6,
+        y=0.95,
         xanchor="right",
-        x=0.6
+        x=0.95
     ))
-    fig.update_xaxes(matches=None)
+#    fig.update_xaxes(matches=None)
     fig.update_layout(
         font=dict(
             #family="Courier New, monospace",
@@ -252,11 +252,12 @@ def print_averages():
 
 if __name__ == "__main__":
     # What languages are we evaluating?
-    languages = ['zh', 'zh_hant', 'en']
+    languages = ["zh", "en"] #['fr', 'en']#['zh', 'zh_hant', 'en']
     #languages = ['ar', 'zh', 'nl', 'en', 'fr', 'de', 'it', 'pl', 'ru', 'es']#config.language_code_list #['en', 'zh']#config.language_code_list
     #languages = [Arabic, Bengali, Chinese, Dutch, English, French, German, Hindi, Portuguese, Italian, Polish, Russian, Spanish]
     # What models are we evaluating?
-    model_list = ["Qwen/Qwen2-1.5B","Qwen/Qwen2-7B","Qwen/Qwen2-72B", "meta-llama/Meta-Llama-3-8B", "meta-llama/Meta-Llama-3-70B", ] #["Qwen_Qwen2-7B", "meta-llama_Meta-Llama-3-8B",] # "bigscience/bloom-7b1"]
+    model_list = ["Qwen/Qwen2-1.5B","Qwen/Qwen2-7B","Qwen/Qwen2-72B", "meta-llama/Meta-Llama-3-8B", "meta-llama/Meta-Llama-3-70B", ] #[#"bigscience/bloom-7b1", "bigscience/bloom-1b7", "mistralai/Mistral-7B-v0.1",]
+    #["Qwen/Qwen2-1.5B","Qwen/Qwen2-7B","Qwen/Qwen2-72B", "meta-llama/Meta-Llama-3-8B", "meta-llama/Meta-Llama-3-70B", ] #["Qwen_Qwen2-7B", "meta-llama_Meta-Llama-3-8B",] # "bigscience/bloom-7b1"]
     d = load_dataset("LanguageShades/FormattedBiasShadesWithLogprobs")['test'].to_dict()
     #print(d.keys())
     for group_tuple in identity_tuples:

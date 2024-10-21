@@ -10,19 +10,36 @@ import logging
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
-
-NO_TEMPLATES = ['ar', 'zh', 'zh_hant']
-LANG_CODES = Config.language_codes.values()
+ALERT_MISSING = False
+#NO_TEMPLATES = ['ar', 'zh', 'zh_hant']
+LANG_CODES = Config.language_code_list #['_'.join(x.lower().split('-')) for x in Config.language_code_list]
 # Where to put the output csv files.
 CSV_DIR = '/Users/margaretmitchell/HuggingFace/git/Shades/FormattedBiasShades/by_language/'
 ALL_CSV_PATH = '/Users/margaretmitchell/HuggingFace/git/Shades/FormattedBiasShades/all/all.csv'
 
 class CleanDataset:
 
+
+    @staticmethod
+    def convert_to_string(x):
+        if x is None:
+            return ''
+        else:
+            return str(x)
+
     @staticmethod
     def convert_to_list(x):
+        #print('x is')
+        #print(x)
         if isinstance(x, str):
-            return [i.strip() for i in re.split("[,/]", x)]
+            new_x = [i.strip() for i in re.split("[,/;]", x)]
+            #print("Now it's")
+            #print(new_x)
+            return new_x
+        elif x is None:
+            return []
+        print("Error -- X was:")
+        print(x)
         return x
 
     @staticmethod
@@ -35,66 +52,44 @@ class CleanDataset:
 
     @staticmethod
     def map_to_iso_language_codes(x):
+        # Not implemented, since we ended up using the ISO language codes
+        # in the raw dataset.
         pass
 
     @staticmethod
     def map_to_iso_country_codes(x):
-        country_iso_map = {
-            "Mainland China": "CN",
-            "India?": "IN",
-            "Brazill": "BR",
-            "Uzbekistan": "UZ",
-            "Dominican Republic": "DO",
-            "Romania": "RO",
-            "Russia": "RU",
-            "Hong Kong": "HK",
-            "France": "FR",
-            "Netherlands": "NL",
-            "Flemish Belgium": "BE",  # Assuming it's referring to Belgium
-            "Poland": "PL",
-            "Italy": "IT",
-            "India": "IN",
-            "France?": "FR",
-            "Japan": "JP",
-            "Brazil": "BR",
-            "West Germany": "DE",  # West Germany is now part of Germany (DE)
-            "Flanders Belgium": "BE",  # Assuming it's referring to Belgium
-            "China": "CN",
-            "Germany": "DE",
-            "mainland China": "CN",
-            "Lebanon": "LB",
-            "US": "US",
-        }
+        country_iso_map = Config.country_iso_map
         try:
             return [country_iso_map.get(i, i) for i in x]
         except:
+            print("Couldn't find country code for country in:")
+            print(x)
             return x
 
     @staticmethod
     def map_to_bool(x):
         try:
             y = x.strip().lower()
-            if y == "yes" or y == "y" or y == "yes." or y == "true":
+            if y[0] == "y" or y == "true":
                 return True
-            elif (
-                y == "no"
-                or y == "n"
-                or y.startswith("x")
-                or y.startswith("no")
-                or x == "false"
-            ):
-                return False
-            print("Don't know how to handle this one for the expression:")
-            print(x)
-            sys.exit()
-            return x
+            return False
+            #elif (
+            #    y == "no"
+            #    or y == "n"
+            #    or y.startswith("x")
+            #    or y.startswith("no")
+            #    or x == "false"
+            #):
+            #    return False
+            #print("Don't know how to handle this one for the expression:")
+            #print(x)
+            #return x
         except:
             return False
 
     def get_col_stats(self, df):
         stats = {}
         for col in df.columns:
-
             stats[col] = df[col].value_counts()
             logger.info(f"Column: {col}")
             logger.info(stats[col])
@@ -116,6 +111,52 @@ class CleanDataset:
             logger.warning(f"Error processing: {x}, Error: {e}")
         return x
 
+def combine_lists(row):
+    original_languages = row["stereotype_origin_langs"]
+    valid_languages = row["stereotype_valid_langs"]
+    print(original_languages)
+    print(valid_languages)
+    return list(set(original_languages + valid_languages))
+
+def copy_original_language_to_valid_language(df):
+    df['stereotype_valid_langs'] = df.apply(combine_lists, axis=1)
+    return df
+
+def copy_original_content_to_contrasts(df, index):
+    """Copies content from the _original statement to the contrasts:
+    bias_type and templates. Moves on when something is missing."""
+    df_mini = df[df['index'] == index]
+    subset_ids = list(df_mini.loc[df_mini['subset'] != "_original"]['subset'])
+    for letter_idx in range(len(subset_ids)):
+        letter = subset_ids[letter_idx]
+        # If the bias_type isn't there, fill it in.
+        original_bias_type = df_mini[df_mini['subset'] == '_original']["bias_type"].values
+        try:
+            df.loc[(df['index'] == index) & (df['subset'] == letter), "bias_type"] = original_bias_type
+        except ValueError:
+            logger.warning("Issue with indexing for %s, %s" % (index, letter))
+    # Copy the template from the last-completed one to the blank cells below it.
+    for lang in LANG_CODES:
+            lang = lang.lower()
+            #if lang not in NO_TEMPLATES:
+            try:
+                prev_template = df_mini.loc[df_mini['subset'] == '_original'][lang + "_templates"]
+            except KeyError:
+                continue
+            if not prev_template.any() and ALERT_MISSING:
+                logger.warning("ISSUE: No original template for language %s, index %s," % (lang, index))
+                continue
+            for letter_idx in range(len(subset_ids)):
+                letter = subset_ids[letter_idx]
+                next_template = df_mini[df_mini['subset'] == letter][lang + "_templates"]
+                if not next_template.any():
+                    try:
+                        df.loc[(df['index'] == index) & (df['subset'] == letter), lang + "_templates"] = prev_template.values
+                    except ValueError:
+                        logger.warning("Issue with indexing for %.1f, %s" % (index, letter))
+                else:
+                    prev_template = next_template
+    return df
 
 def convert_dataset(col_map_path, df):
     """
@@ -154,60 +195,28 @@ def convert_dataset(col_map_path, df):
     df["stereotype_valid_langs"] = df["stereotype_valid_langs"].apply(
         cleaner.convert_to_list
     )
+    df = copy_original_language_to_valid_language(df)
+
     df["stereotype_valid_regions"] = df["stereotype_valid_regions"].apply(
         cleaner.convert_to_list
     )
-
     df["stereotype_valid_regions"] = df["stereotype_valid_regions"].apply(
         cleaner.map_to_iso_country_codes
     )
+
+
     for col in df.columns:
-        # TODO: We can remove "perceived" now I think.
-        if "perceived" in col or "expression" in col:
-            print("DOING THIS")
+        if "expression" in col:
             df[col] = df[col].apply(cleaner.map_to_bool)
+        if "comments" in col:
+            df[col] = df[col].apply(cleaner.convert_to_string)
     df.reset_index(drop=True, inplace=True)
     #cleaner.get_col_stats(
     #    df
     #)  # Print Null stats, #todo unique categorical values (some need to be manually mapped)
     return df
 
-
-def copy_original_content_to_contrasts(df, index):
-    """Copies content from the _original statement to the contrasts:
-    bias_type and templates. Moves on when something is missing."""
-    print(index)
-    df_mini = df[df['index'] == index]
-    subset_ids = list(df_mini.loc[df_mini['subset'] != "_original"]['subset'])
-    for letter_idx in range(len(subset_ids)):
-        letter = subset_ids[letter_idx]
-        # If the bias_type isn't there, fill it in.
-        original_bias_type = df_mini[df_mini['subset'] == '_original']["bias_type"].values
-        try:
-            df.loc[(df['index'] == index) & (df['subset'] == letter), "bias_type"] = original_bias_type
-        except ValueError:
-            logger.warning("Issue with indexing for %s, %s" % (index, letter))
-    # Copy the template from the last-completed one to the blank cells below it.
-    for lang in LANG_CODES:
-        if lang not in NO_TEMPLATES:
-            prev_template = df_mini.loc[df_mini['subset'] == '_original'][lang + "_templates"]
-            if not prev_template.any():
-                logger.warning("ISSUE: No original template for language %s, index %s," % (lang, index))
-                continue
-            for letter_idx in range(len(subset_ids)):
-                letter = subset_ids[letter_idx]
-                next_template = df_mini[df_mini['subset'] == letter][lang + "_templates"]
-                if not next_template.any():
-                    try:
-                        df.loc[(df['index'] == index) & (df['subset'] == letter), lang + "_templates"] = prev_template.values
-                    except ValueError:
-                        logger.warning("Issue with indexing for %.1f, %s" % (index, letter))
-                else:
-                    prev_template = next_template
-    return df
-
 def main(
-    formatted_dataset_upload_path="LanguageShades/FormattedBiasShades",
     raw_dataset_path="LanguageShades/BiasShadesRaw",
     col_map_fid="BiasShades_fields - columns.csv",
 ):
@@ -215,24 +224,24 @@ def main(
     col_map_path = os.path.dirname(os.path.realpath(__file__)) + "/" + col_map_fid
     # file is https://docs.google.com/spreadsheets/d/1dyEYmsGW3i1MpSoKyuPofpbjqEkifUhdd19vVDQr848/edit?usp=sharing
     df = datasets.load_dataset(raw_dataset_path, split="train").to_pandas()
-    # TODO: Check how this columns.csv should be updated.
     df = convert_dataset(col_map_path, df=df)
     df.to_csv(ALL_CSV_PATH, index=False)
     # TODO: Changing to dataset_dict doesn't even need to happen anymore.
-    dataset_dict = datasets.Dataset.from_pandas(df)
-    basic_cols = ['index', 'subset', 'bias_type', 'stereotype_origin_langs',
-                  'stereotype_valid_langs', 'stereotype_valid_regions',
-                  'stereotyped_entity', 'type']
+    #dataset_dict = datasets.Dataset.from_pandas(df)
+    basic_cols = Config.basic_cols
     #dataset_dict_test = {} #dataset_dict.select_columns(basic_cols)}
     for lang in LANG_CODES:
+        print(lang)
         #if lang not in NO_TEMPLATES:
         #    lang_cols += [lang + "_templates"]
         lang_cols = basic_cols + [lang + "_biased_sentences", lang + "_expression", lang + "_comments"]
-        #dataset_dict_test[lang] = dataset_dict.select_columns(lang_cols)
-        print("LANGUAGE IS %s" % lang)
-        print("COLUMNS ARE")
-        print(lang_cols)
-        pd.DataFrame(dataset_dict.select_columns(lang_cols)).to_csv(CSV_DIR + lang + '.csv', index=False)
+        #print(df)
+        try:
+            df[lang_cols].to_csv(CSV_DIR + lang + '.csv', index=False)
+            print("Saved to %s" % CSV_DIR)
+        except KeyError:
+            print("No columns for %s" % lang)
+        #pd.DataFrame(dataset_dict.select_columns(lang_cols)).to_csv(CSV_DIR + lang + '.csv', index=False)
     #dataset_dict_test_hub = datasets.Dataset.from_dict(dataset_dict_test)
     #dataset_dict_test_hub.push_to_hub(formatted_dataset_upload_path)
 

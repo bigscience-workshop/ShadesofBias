@@ -1,7 +1,7 @@
 ,current_null_%,current_column_name,new_column_name,new_type,extra_type_info
 0,3.2,Index,index,Str,
 1,,Subset,subset,Str,
-2,57.5,Bias Type,bias_type,Str,categorical
+2,57.5,Bias Type,bias_type,List[Str],List of bias types
 3,58.1,Original Language of the Stereotype,stereotype_origin_langs,List[Str],List of ISO language codes
 4,63.1,Language Validity (In which languages is this stereotype valid?),stereotype_valid_langs,List[Str],List of ISO language codes
 5,57.7,Region Validity (In which regions is this stereotype valid?),stereotype_valid_regions,List[Str],List of ISO country codes

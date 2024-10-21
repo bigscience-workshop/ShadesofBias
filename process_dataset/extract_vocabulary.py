@@ -27,7 +27,7 @@ expected_types = ["AGE", "AGE_STATE", "BODY_HAIRCOLOR", "BODY_HEIGHT", "BODY_SKI
                   "DISABILITY", "ETHNICITY", "FAMILY_REL", "FIELD", "GENDER",
                   "GENDER+AGE", "GENDER_POSS", "GENDER_RELATIVE_PRONOUN",
                   "LANGUAGE", "MENTAL_ISSUE", "MENTAL_ISSUE_ACTIVITY", "NATION",
-                  "NATIONALITY", "NATIONALITY_LOCALE", "REGION_PERSON", "REGION", "OCCUPATION",
+                  "NATIONALITY", "NATIONALITY_LOCALE", "REGION_PERSON", "REGION_PERSON+AGE", "REGION", "OCCUPATION",
                   "OCCUPATION+GENDER", "OCCUPATION_TYPE", "PHYSICAL_APPEARANCE",
                   "POLITICAL_IDEA", "POLITICAL_IDENTITY", "SEXUAL_ORIENTATION",
                   "SEXUAL_ORIENTATION_STATE", "SOCIO_EC", "URBANITY"]
@@ -39,7 +39,7 @@ slot_descriptions = \
     {"AGE": " - Phrases that refer to people by their age.",
      "AGE_STATE": " - Phrases that refer to age. NOT a reference to a person or group of people.",
  "BODY_HAIRCOLOR": " - Phrases that refer to people by their haircolor.",
- "BODY_HEIGHT": "- Phrases that refer to people by their height.",
+ "BODY_HEIGHT": " - Phrases that refer to people by their height.",
  "BODY_SKIN_COLOR": " - Phrases that refer to people by their skin color.",
  "BODY_WEIGHT": " - Phrases that refer to people by their weight",
  "BODY_WEIGHT_STATE": " - Phrases that refer to a particular type of body weight. NOT a reference to a person or group of people.",
@@ -63,6 +63,7 @@ slot_descriptions = \
  "POLITICAL_IDENTITY": " - Phrases that refer to people by their political ideology.",
      "REGION": " - Phrases that refer to a region. NOT a reference to a person or group of people.",
      "REGION_PERSON": " - Phrases that refer to people by the region they are from.",
+     "REGION_PERSON+AGE": " - Phrases that refer to people of a certain age by the region they are from.",
  "SEXUAL_ORIENTATION": " - Phrases that refer to people by their sexual orientation.",
      "SEXUAL_ORIENTATION_STATE": " - Phrases that refer to sexual orientation.",
  "SOCIO_EC": " - Phrases that refer to people by their socioeconomic class.",
@@ -87,6 +88,7 @@ mod_descriptions = {
     ":FEM": " - Feminine singulars.",
     ":MASC": " - Masculine singulars.",
     ":NEUT": " - Neuter singulars.",
+    ":NEUT-ADJ": " - Adjectives/descriptions. Describe neuter singulars.",
     "": " - Singulars, no gender marked."
 }
 dataset = datasets.load_dataset("LanguageShades/BiasShadesRaw")['train']
@@ -251,6 +253,7 @@ def norm_slot(biased_template, tags):
 
 all_slots = defaultdict(lambda: Counter())
 slot_counter = Counter()
+stereotyped_groups = {}
 for language in config.languages:
     full_slot_vocab = defaultdict(lambda: defaultdict(Counter))
     errors = []
@@ -293,6 +296,7 @@ for language in config.languages:
                 all_slots[bare_slot + mods][language] += 1
                 for term in slot_vocab[slot]:
                     full_slot_vocab[bare_slot][mods][term] += 1
+                    stereotyped_groups[term] = stereotyped_group
             if error:
                 errors += [(biased_sentence, biased_template)]
 
@@ -315,7 +319,7 @@ for language in config.languages:
                 for value in values:
                     if value == '':
                         continue
-                    f.write('\t   ' + value + "\n")
+                    f.write('\t   ' + value + " - refers to " + stereotyped_groups[value] +"\n")
         f.write("\n=== LEXICON ISSUES ===\nThe following stereotype/template pairs couldn't be aligned; is there an error?\n")
         for bias_tuple in errors:
             biased_sentence = bias_tuple[0]
