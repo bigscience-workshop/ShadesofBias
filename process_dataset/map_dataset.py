@@ -1,40 +1,87 @@
 import os
+import re
 import sys
 
-import re
 import datasets
 import pandas as pd
+
 sys.path.append(".")
-from config import Config
 import logging
+
+from config import Config
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 ALERT_MISSING = False
-#NO_TEMPLATES = ['ar', 'zh', 'zh_hant']
-LANG_CODES = Config.language_code_list #['_'.join(x.lower().split('-')) for x in Config.language_code_list]
+# NO_TEMPLATES = ['ar', 'zh', 'zh_hant']
+LANG_CODES = (
+    Config.language_code_list
+)  # ['_'.join(x.lower().split('-')) for x in Config.language_code_list]
 # Where to put the output csv files.
-CSV_DIR = '/Users/margaretmitchell/HuggingFace/git/Shades/FormattedBiasShades/by_language/'
-ALL_CSV_PATH = '/Users/margaretmitchell/HuggingFace/git/Shades/FormattedBiasShades/all/all.csv'
+CSV_DIR = (
+    "/Users/margaretmitchell/HuggingFace/git/Shades/FormattedBiasShades/by_language/"
+)
+ALL_CSV_PATH = (
+    "/Users/margaretmitchell/HuggingFace/git/Shades/FormattedBiasShades/all/all.csv"
+)
+
 
 class CleanDataset:
 
+    LANG_TO_REGIONS = {
+        "it": ["ITA"],
+        "mr": ["IND"],  # Maharashtra region
+        "pt-BR": ["BRA"],
+        "fr": ["FRA"],
+        "hi": ["IND"],
+        "en": ["USA", "GBR"],
+        "de": ["DEU"],
+        "ro": ["ROU"],
+        "ru-UZ": ["UZB"],
+        "nl": ["NLD", "BEL"],
+        "zh": ["CHN", "HKG"],
+        "ar": [
+            "DZA",
+            "EGY",
+            "LBY",
+            "MRT",
+            "MAR",
+            "SDN",
+            "TUN",  # North Africa
+            "BHR",
+            "KWT",
+            "OMN",
+            "QAT",
+            "SAU",
+            "ARE",
+            "YEM",  # Gulf states
+            "IRQ",
+            "JOR",
+            "LBN",
+            "PSE",
+            "SYR",  # Levant
+        ],
+        "pl": ["POL"],  # Polish
+        "bn": ["IND"],  # Bengali (India/Bangladesh, using IND here)
+        "es-DO": ["DOM"],  # Dominican Spanish
+        "ru": ["RUS"],  # Russian
+    }
 
     @staticmethod
     def convert_to_string(x):
         if x is None:
-            return ''
+            return ""
         else:
             return str(x)
 
     @staticmethod
     def convert_to_list(x):
-        #print('x is')
-        #print(x)
+        # print('x is')
+        # print(x)
         if isinstance(x, str):
             new_x = [i.strip() for i in re.split("[,/;]", x)]
-            #print("Now it's")
-            #print(new_x)
+            # print("Now it's")
+            # print(new_x)
             return new_x
         elif x is None:
             return []
@@ -73,17 +120,17 @@ class CleanDataset:
             if y[0] == "y" or y == "true":
                 return True
             return False
-            #elif (
+            # elif (
             #    y == "no"
             #    or y == "n"
             #    or y.startswith("x")
             #    or y.startswith("no")
             #    or x == "false"
-            #):
+            # ):
             #    return False
-            #print("Don't know how to handle this one for the expression:")
-            #print(x)
-            #return x
+            # print("Don't know how to handle this one for the expression:")
+            # print(x)
+            # return x
         except:
             return False
 
@@ -111,6 +158,35 @@ class CleanDataset:
             logger.warning(f"Error processing: {x}, Error: {e}")
         return x
 
+    def fill_missing_regions_and_languages(self, df):
+   
+        REGION_TO_LANGS = {}
+        for lang, regions in self.LANG_TO_REGIONS.items():
+            for region in regions:
+                if region not in REGION_TO_LANGS:
+                    REGION_TO_LANGS[region] = []
+                REGION_TO_LANGS[region].append(lang)
+
+        updated_valid_langs = []
+        updated_valid_regions = []
+        for _, row in df.iterrows():
+            langs = row["stereotype_valid_langs"]
+            regions = row["stereotype_valid_regions"]
+            for lang in langs:
+                if lang in self.LANG_TO_REGIONS:
+                    regions.extend(self.LANG_TO_REGIONS[lang])
+            for region in regions:
+                if region in REGION_TO_LANGS:
+                    langs.extend(REGION_TO_LANGS[region])
+            updated_langs = list(set(langs))
+            updated_regions = list(set(regions))
+            updated_valid_langs.append(updated_langs)
+            updated_valid_regions.append(updated_regions)
+        df["stereotype_valid_langs"] = updated_valid_langs
+        df["stereotype_valid_regions"] = updated_valid_regions
+        return df
+
+
 def combine_lists(row):
     original_languages = row["stereotype_origin_langs"]
     valid_languages = row["stereotype_valid_langs"]
@@ -118,45 +194,59 @@ def combine_lists(row):
     print(valid_languages)
     return list(set(original_languages + valid_languages))
 
+
 def copy_original_language_to_valid_language(df):
-    df['stereotype_valid_langs'] = df.apply(combine_lists, axis=1)
+    df["stereotype_valid_langs"] = df.apply(combine_lists, axis=1)
     return df
+
 
 def copy_original_content_to_contrasts(df, index):
     """Copies content from the _original statement to the contrasts:
     bias_type and templates. Moves on when something is missing."""
-    df_mini = df[df['index'] == index]
-    subset_ids = list(df_mini.loc[df_mini['subset'] != "_original"]['subset'])
+    df_mini = df[df["index"] == index]
+    subset_ids = list(df_mini.loc[df_mini["subset"] != "_original"]["subset"])
     for letter_idx in range(len(subset_ids)):
         letter = subset_ids[letter_idx]
         # If the bias_type isn't there, fill it in.
-        original_bias_type = df_mini[df_mini['subset'] == '_original']["bias_type"].values
+        original_bias_type = df_mini[df_mini["subset"] == "_original"][
+            "bias_type"
+        ].values
         try:
-            df.loc[(df['index'] == index) & (df['subset'] == letter), "bias_type"] = original_bias_type
+            df.loc[(df["index"] == index) & (df["subset"] == letter), "bias_type"] = (
+                original_bias_type
+            )
         except ValueError:
             logger.warning("Issue with indexing for %s, %s" % (index, letter))
     # Copy the template from the last-completed one to the blank cells below it.
     for lang in LANG_CODES:
-            lang = lang.lower()
-            #if lang not in NO_TEMPLATES:
-            try:
-                prev_template = df_mini.loc[df_mini['subset'] == '_original'][lang + "_templates"]
-            except KeyError:
-                continue
-            if not prev_template.any() and ALERT_MISSING:
-                logger.warning("ISSUE: No original template for language %s, index %s," % (lang, index))
-                continue
-            for letter_idx in range(len(subset_ids)):
-                letter = subset_ids[letter_idx]
-                next_template = df_mini[df_mini['subset'] == letter][lang + "_templates"]
-                if not next_template.any():
-                    try:
-                        df.loc[(df['index'] == index) & (df['subset'] == letter), lang + "_templates"] = prev_template.values
-                    except ValueError:
-                        logger.warning("Issue with indexing for %.1f, %s" % (index, letter))
-                else:
-                    prev_template = next_template
+        lang = lang.lower()
+        # if lang not in NO_TEMPLATES:
+        try:
+            prev_template = df_mini.loc[df_mini["subset"] == "_original"][
+                lang + "_templates"
+            ]
+        except KeyError:
+            continue
+        if not prev_template.any() and ALERT_MISSING:
+            logger.warning(
+                "ISSUE: No original template for language %s, index %s," % (lang, index)
+            )
+            continue
+        for letter_idx in range(len(subset_ids)):
+            letter = subset_ids[letter_idx]
+            next_template = df_mini[df_mini["subset"] == letter][lang + "_templates"]
+            if not next_template.any():
+                try:
+                    df.loc[
+                        (df["index"] == index) & (df["subset"] == letter),
+                        lang + "_templates",
+                    ] = prev_template.values
+                except ValueError:
+                    logger.warning("Issue with indexing for %.1f, %s" % (index, letter))
+            else:
+                prev_template = next_template
     return df
+
 
 def convert_dataset(col_map_path, df):
     """
@@ -184,7 +274,7 @@ def convert_dataset(col_map_path, df):
     logger.info(df.columns)
 
     # Fill out all bias_type and template cells possible.
-    indices = df['index'].unique()
+    indices = df["index"].unique()
     for index in indices:
         df = copy_original_content_to_contrasts(df, index)
 
@@ -204,6 +294,8 @@ def convert_dataset(col_map_path, df):
         cleaner.map_to_iso_country_codes
     )
 
+    # Augment the regions and languages with missing regions that should accompany a language and vice versa.
+    df = cleaner.fill_missing_regions_and_languages(df)
 
     for col in df.columns:
         if "expression" in col:
@@ -211,10 +303,11 @@ def convert_dataset(col_map_path, df):
         if "comments" in col:
             df[col] = df[col].apply(cleaner.convert_to_string)
     df.reset_index(drop=True, inplace=True)
-    #cleaner.get_col_stats(
+    # cleaner.get_col_stats(
     #    df
-    #)  # Print Null stats, #todo unique categorical values (some need to be manually mapped)
+    # )  # Print Null stats, #todo unique categorical values (some need to be manually mapped)
     return df
+
 
 def main(
     raw_dataset_path="LanguageShades/BiasShadesRaw",
@@ -227,23 +320,27 @@ def main(
     df = convert_dataset(col_map_path, df=df)
     df.to_csv(ALL_CSV_PATH, index=False)
     # TODO: Changing to dataset_dict doesn't even need to happen anymore.
-    #dataset_dict = datasets.Dataset.from_pandas(df)
+    # dataset_dict = datasets.Dataset.from_pandas(df)
     basic_cols = Config.basic_cols
-    #dataset_dict_test = {} #dataset_dict.select_columns(basic_cols)}
+    # dataset_dict_test = {} #dataset_dict.select_columns(basic_cols)}
     for lang in LANG_CODES:
         print(lang)
-        #if lang not in NO_TEMPLATES:
+        # if lang not in NO_TEMPLATES:
         #    lang_cols += [lang + "_templates"]
-        lang_cols = basic_cols + [lang + "_biased_sentences", lang + "_expression", lang + "_comments"]
-        #print(df)
+        lang_cols = basic_cols + [
+            lang + "_biased_sentences",
+            lang + "_expression",
+            lang + "_comments",
+        ]
+        # print(df)
         try:
-            df[lang_cols].to_csv(CSV_DIR + lang + '.csv', index=False)
+            df[lang_cols].to_csv(CSV_DIR + lang + ".csv", index=False)
             print("Saved to %s" % CSV_DIR)
         except KeyError:
             print("No columns for %s" % lang)
-        #pd.DataFrame(dataset_dict.select_columns(lang_cols)).to_csv(CSV_DIR + lang + '.csv', index=False)
-    #dataset_dict_test_hub = datasets.Dataset.from_dict(dataset_dict_test)
-    #dataset_dict_test_hub.push_to_hub(formatted_dataset_upload_path)
+        # pd.DataFrame(dataset_dict.select_columns(lang_cols)).to_csv(CSV_DIR + lang + '.csv', index=False)
+    # dataset_dict_test_hub = datasets.Dataset.from_dict(dataset_dict_test)
+    # dataset_dict_test_hub.push_to_hub(formatted_dataset_upload_path)
 
 
 if __name__ == "__main__":
